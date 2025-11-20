@@ -18,7 +18,7 @@
 1. Установите зависимости: `pip install -r requirements.txt` (или `make install`).
 2. Примените миграции: `python vacation_workflow/manage.py migrate` (или `make migrate`).
 3. Создайте суперпользователя: `python vacation_workflow/manage.py createsuperuser` (или `make superuser`).
-4. Запустите сервер: `python vacation_workflow/manage.py runserver 0.0.0.0:8000` (или `make run`).
+4. Запустите сервер: `python vacation_workflow/manage.py runserver localhost:8000` (или `make run`).
 5. Откройте `http://localhost:8000/` для доступа к SPA.
 
 ## Роли
@@ -46,7 +46,7 @@ API эндпоинты находятся под префиксом `/api/` и �
 1. Установите зависимости: `pip install -r requirements.txt` (или `make install`).
 2. Примените миграции: `python vacation_workflow/manage.py migrate` (или `make migrate`).
 3. Создайте суперпользователя: `python vacation_workflow/manage.py createsuperuser` (или `make superuser`).
-4. Запустите сервер: `python vacation_workflow/manage.py runserver 0.0.0.0:8000` (или `make run`).
+4. Запустите сервер: `python vacation_workflow/manage.py runserver localhost:8000` (или `make run`).
 5. Откройте `http://localhost:8000/` для доступа к SPA.
 
 ## Роли
@@ -66,7 +66,7 @@ API эндпоинты находятся под префиксом `/api/` и �
 1. Установите зависимости: `pip install -r requirements.txt` (или `make install`).
 2. Примените миграции: `python vacation_workflow/manage.py migrate` (или `make migrate`).
 3. Создайте суперпользователя: `python vacation_workflow/manage.py createsuperuser` (или `make superuser`).
-4. Запустите сервер: `python vacation_workflow/manage.py runserver 0.0.0.0:8000` (или `make run`).
+4. Запустите сервер: `python vacation_workflow/manage.py runserver localhost:8000` (или `make run`).
 5. Откройте `http://localhost:8000/` для доступа к SPA.
 
 ## Роли
@@ -86,7 +86,7 @@ API эндпоинты находятся под префиксом `/api/` и �
 1. Установите зависимости: `pip install -r requirements.txt` (или `make install`).
 2. Примените миграции: `python vacation_workflow/manage.py migrate` (или `make migrate`).
 3. Создайте суперпользователя: `python vacation_workflow/manage.py createsuperuser` (или `make superuser`).
-4. Запустите сервер: `python vacation_workflow/manage.py runserver 0.0.0.0:8000` (или `make run`).
+4. Запустите сервер: `python vacation_workflow/manage.py runserver localhost:8000` (или `make run`).
 5. Откройте `http://localhost:8000/` для доступа к SPA.
 
 ## Роли
