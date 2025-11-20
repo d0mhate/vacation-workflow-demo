@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vacation Workflow</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="/static/app.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .badge { background: red; color: white; border-radius: 50%; padding: 4px 8px; margin-left: 6px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    table, th, td { border: 1px solid #ccc; }
+    th, td { padding: 6px; text-align: left; }
+    form { margin-top: 10px; }
+    button { margin: 2px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div><strong>Vacation Workflow</strong></div>
+      <div v-if="user">
+        <span>{{ user.username }} ({{ user.role }})</span>
+        <span class="badge" title="Unread notifications">{{ unreadCount }}</span>
+        <button @click="refreshNotifications">Обновить</button>
+        <button @click="logout">Выйти</button>
+      </div>
+    </header>
+
+    <div v-if="loading">Загрузка...</div>
+
+    <div v-else>
+      <div v-if="!user">
+        <h3>Вход</h3>
+        <form @submit.prevent="login">
+          <div>
+            <label>Логин: <input v-model="loginForm.username" required></label>
+          </div>
+          <div>
+            <label>Пароль: <input type="password" v-model="loginForm.password" required></label>
+          </div>
+          <button type="submit">Войти</button>
+          <div style="color: red" v-if="error">{{ error }}</div>
+        </form>
+      </div>
+
+      <div v-else>
+        <section v-if="user.role === 'employee'">
+          <h3>Мои данные</h3>
+          <div>Остаток отпуска: {{ balance }} дней</div>
+          <h4>Мои заявки</h4>
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Период</th><th>Статус</th><th>Подтверждено</th><th>Действия</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="req in myRequests" :key="req.id">
+                <td>{{ req.id }}</td>
+                <td>{{ req.start_date }} — {{ req.end_date }}</td>
+                <td>{{ req.status }}</td>
+                <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
+                <td>
+                  <button v-if="!req.confirmed_by_employee" @click="confirmRequest(req.id)">Подтвердить ознакомление</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <h4>Новая заявка</h4>
+          <form @submit.prevent="createRequest">
+            <label>Начало: <input type="date" v-model="newRequest.start_date" required></label>
+            <label>Конец: <input type="date" v-model="newRequest.end_date" required></label>
+            <button type="submit">Отправить</button>
+          </form>
+        </section>
+
+        <section v-if="user.role === 'manager'">
+          <h3>Заявки сотрудников</h3>
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Сотрудник</th><th>Период</th><th>Статус</th><th>Подтверждено</th><th>Действия</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="req in managerRequests" :key="req.id">
+                <td>{{ req.id }}</td>
+                <td>{{ req.user.username }}</td>
+                <td>{{ req.start_date }} — {{ req.end_date }}</td>
+                <td>{{ req.status }}</td>
+                <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
+                <td>
+                  <button @click="approveRequest(req.id)">Согласовать</button>
+                  <button @click="rejectRequest(req.id)">Отклонить</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section v-if="user.role === 'hr'">
+          <h3>Все заявки</h3>
+          <button @click="exportCsv">Экспорт в CSV</button>
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Сотрудник</th><th>Период</th><th>Статус</th><th>Подтверждено</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="req in hrRequests" :key="req.id">
+                <td>{{ req.id }}</td>
+                <td>{{ req.user.username }}</td>
+                <td>{{ req.start_date }} — {{ req.end_date }}</td>
+                <td>{{ req.status }}</td>
+                <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <h4>Уведомления</h4>
+          <button @click="loadNotifications">Обновить</button>
+          <ul>
+            <li v-for="n in notifications" :key="n.id">
+              <strong v-if="!n.is_read">[Непрочитано]</strong> {{ n.message }} ({{ new Date(n.created_at).toLocaleString() }})
+              <button v-if="!n.is_read" @click="markNotificationRead(n.id)">Отметить прочитанным</button>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

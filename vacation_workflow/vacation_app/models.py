@@ -1,0 +1,60 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class User(AbstractUser):
+    class Roles(models.TextChoices):
+        EMPLOYEE = 'employee', 'Employee'
+        MANAGER = 'manager', 'Manager'
+        HR = 'hr', 'HR'
+
+    role = models.CharField(max_length=20, choices=Roles.choices, default=Roles.EMPLOYEE)
+    manager = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='team_members')
+
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+
+
+class VacationBalance(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vacation_balance')
+    days_remaining = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.user.username}: {self.days_remaining} days"
+
+
+class VacationRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacation_requests')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_by_employee = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} {self.start_date} - {self.end_date} ({self.status})"
+
+
+class VacationSchedule(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacation_schedules')
+    year = models.PositiveIntegerField()
+    period_from = models.DateField()
+    period_to = models.DateField()
+
+    def __str__(self):
+        return f"{self.user.username} schedule {self.year}"
+
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification for {self.user.username}: {self.message[:20]}"
