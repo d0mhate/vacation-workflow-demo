@@ -31,9 +31,38 @@ createApp({
       loadingManagerData: false,
       loadingHrData: false,
       toastTimeoutId: null,
+      showProfileModal: false,
+      profileForm: { first_name: '', last_name: '' },
     };
   },
   methods: {
+    openProfileModal() {
+      if (!this.user) return;
+      this.profileForm.first_name = this.user.first_name || '';
+      this.profileForm.last_name = this.user.last_name || '';
+      this.showProfileModal = true;
+    },
+    async saveProfile() {
+      try {
+        const payload = {
+          first_name: this.profileForm.first_name,
+          last_name: this.profileForm.last_name
+        };
+        const data = await this.fetchJson('/api/profile/update', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        if (data && data.user) {
+          this.user.first_name = data.user.first_name;
+          this.user.last_name = data.user.last_name;
+        }
+        this.showProfileModal = false;
+        this.showToast('Профиль обновлен', 'success');
+      } catch (err) {
+        console.error(err);
+        this.showToast('Не удалось сохранить профиль', 'error');
+      }
+    },
     csrfHeader() {
       return { 'X-CSRFToken': getCookie('csrftoken') || '' };
     },
@@ -147,6 +176,7 @@ createApp({
         console.error(err);
       }
       this.user = null;
+      this.showProfileModal = false;
       this.myRequests = [];
       this.managerRequests = [];
       this.hrRequests = [];

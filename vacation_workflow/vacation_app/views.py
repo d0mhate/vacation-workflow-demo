@@ -231,6 +231,8 @@ def _serialize_user(user: User):
     return {
         'id': user.id,
         'username': user.username,
+        'first_name': user.first_name or '',
+        'last_name': user.last_name or '',
         'role': user.role,
         'manager_id': user.manager_id,
     }
@@ -275,3 +277,20 @@ def _create_notification(user: User, type: str, request: VacationRequest = None)
         type=type,
         request=request
     )
+
+@login_required
+@require_POST
+def profile_update(request):
+    data = _get_request_data(request)
+    first_name = data.get('first_name', '').strip()
+    last_name = data.get('last_name', '').strip()
+
+    if not first_name or not last_name:
+        return _json_error('Имя и фамилия обязательны')
+
+    user = request.user
+    user.first_name = first_name
+    user.last_name = last_name
+    user.save(update_fields=['first_name', 'last_name'])
+
+    return JsonResponse({'user': _serialize_user(user)})

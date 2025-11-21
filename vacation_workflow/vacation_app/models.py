@@ -11,6 +11,9 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=Roles.choices, default=Roles.EMPLOYEE)
     manager = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='team_members')
 
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+
     def __str__(self):
         return f"{self.username} ({self.role})"
 

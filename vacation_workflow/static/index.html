@@ -13,8 +13,11 @@
     <header>
       <div><strong>Vacation Workflow</strong></div>
       <div v-if="user">
-        <span>{{ user.username }} ({{ user.role }})</span>
+        <span>{{ user.first_name }} {{ user.last_name }} ({{ user.username }}, {{ user.role }})</span>
         <span class="badge" title="Unread notifications">{{ unreadCount }}</span>
+        <button @click="openProfileModal" class="secondary" style="margin-right: 8px;">
+          Профиль
+        </button>
         <button @click="logout">Выйти</button>
       </div>
     </header>
@@ -24,7 +27,6 @@
     <div v-else>
         <div id="toast" class="toast-container"></div>
       <div v-if="!user" class="card login-card">
-        <h3>Вход</h3>
         <div class="muted login-subtitle">
           Введите логин и пароль, выданные кадровой службой.
         </div>
@@ -210,7 +212,7 @@
                     }"
                   >
                     <div class="request-card-header">
-                      Заявка №{{ req.id }} — {{ req.user.username }}
+                      Заявка №{{ req.id }} —  {{ req.user.first_name }} {{ req.user.last_name }}
                     </div>
                     <div class="request-card-period">
                       Период: {{ req.start_date }} — {{ req.end_date }}
@@ -376,6 +378,19 @@
             </ul>
           </transition>
         </section>
+      </div>
+    </div>
+    <div v-if="showProfileModal" class="modal-backdrop">
+      <div class="modal">
+        <h3>Редактирование профиля</h3>
+        <form @submit.prevent="saveProfile">
+          <label>Имя: <input type="text" v-model="profileForm.first_name" required></label>
+          <label>Фамилия: <input type="text" v-model="profileForm.last_name" required></label>
+          <div class="modal-actions">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="secondary" @click="showProfileModal = false">Отмена</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

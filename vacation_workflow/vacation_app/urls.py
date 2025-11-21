@@ -18,4 +18,5 @@ urlpatterns = [
     path('notifications', views.notifications_list, name='notifications_list'),
     path('notifications/unread_count', views.notifications_unread_count, name='notifications_unread_count'),
     path('notifications/<int:pk>/read', views.notification_mark_read, name='notification_mark_read'),
+    path('profile/update', views.profile_update, name='profile_update'),
 ]

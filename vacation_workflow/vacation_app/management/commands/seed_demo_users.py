@@ -3,6 +3,8 @@ from django.db import transaction
 
 from vacation_app.models import User, VacationBalance
 
+import random
+
 
 class Command(BaseCommand):
     help = (
@@ -10,13 +12,23 @@ class Command(BaseCommand):
         "password 'password123' and preset vacation balances."
     )
 
+    FIRST_NAMES = ["Иван", "Петр", "Алексей", "Дмитрий", "Сергей", "Михаил", "Анна", "Екатерина", "Ольга", "Мария"]
+    LAST_NAMES = ["Иванов", "Петров", "Сидоров", "Кузнецов", "Смирнов", "Васильев", "Козлова", "Соколова", "Попова", "Орлова"]
+
+    def random_full_name(self):
+        return f"{random.choice(self.FIRST_NAMES)} {random.choice(self.LAST_NAMES)}"
+
     def handle(self, *args, **options):
         with transaction.atomic():
             self.stdout.write(self.style.MIGRATE_HEADING("Creating demo roles..."))
 
             manager, _ = User.objects.get_or_create(
                 username="manager",
-                defaults={"role": User.Roles.MANAGER},
+                defaults={
+                    "role": User.Roles.MANAGER,
+                    "first_name": random.choice(self.FIRST_NAMES),
+                    "last_name": random.choice(self.LAST_NAMES),
+                },
             )
             manager.set_password("password123")
             manager.save()
@@ -24,7 +36,11 @@ class Command(BaseCommand):
 
             employee, _ = User.objects.get_or_create(
                 username="employee",
-                defaults={"role": User.Roles.EMPLOYEE},
+                defaults={
+                    "role": User.Roles.EMPLOYEE,
+                    "first_name": random.choice(self.FIRST_NAMES),
+                    "last_name": random.choice(self.LAST_NAMES),
+                },
             )
             employee.manager = manager
             employee.set_password("password123")
@@ -37,7 +53,11 @@ class Command(BaseCommand):
 
             hr, _ = User.objects.get_or_create(
                 username="hr",
-                defaults={"role": User.Roles.HR},
+                defaults={
+                    "role": User.Roles.HR,
+                    "first_name": random.choice(self.FIRST_NAMES),
+                    "last_name": random.choice(self.LAST_NAMES),
+                },
             )
             hr.set_password("password123")
             hr.save()
