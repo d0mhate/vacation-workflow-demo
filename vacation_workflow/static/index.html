@@ -7,14 +7,378 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="/static/app.js" defer></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .badge { background: red; color: white; border-radius: 50%; padding: 4px 8px; margin-left: 6px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-    table, th, td { border: 1px solid #ccc; }
-    th, td { padding: 6px; text-align: left; }
-    form { margin-top: 10px; }
-    button { margin: 2px; }
+    :root {
+      --bg: #f5f7fb;
+      --card-bg: #ffffff;
+      --accent: #2563eb;
+      --accent-soft: #e0edff;
+      --danger: #dc2626;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --radius-lg: 12px;
+      --radius-md: 8px;
+      --shadow-soft: 0 10px 25px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: radial-gradient(circle at top left, #eff6ff 0, #f5f7fb 40%, #f9fafb 100%);
+      color: var(--text-main);
+    }
+
+    #app {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(8px);
+    }
+
+    header strong {
+      font-size: 20px;
+      letter-spacing: 0.03em;
+    }
+
+    header > div:last-child {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .badge {
+      background: var(--danger);
+      color: #ffffff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      margin-left: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    h4 {
+      margin: 16px 0 8px;
+      font-size: 16px;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr);
+      gap: 20px;
+    }
+
+    @media (min-width: 1024px) {
+      .layout-grid {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
+      }
+    }
+
+    section {
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .muted {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .kpi {
+      font-size: 22px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    table thead {
+      background: #f3f4f6;
+    }
+
+    table, th, td {
+      border: 1px solid var(--border);
+    }
+
+    th, td {
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f9fafb;
+    }
+
+    tbody tr:hover {
+      background: #eff6ff;
+    }
+
+    form {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    label {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    input[type="date"],
+    input[type="text"],
+    input[type="password"] {
+      padding: 6px 8px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 14px;
+      margin-left: 4px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3);
+    }
+
+    button {
+      margin: 2px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #ffffff;
+      transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+    }
+
+    button:hover {
+      background: #1d4ed8;
+      transform: translateY(-0.5px);
+      box-shadow: 0 4px 8px rgba(15, 23, 42, 0.18);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+    }
+
+    button.secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button.secondary:hover {
+      background: #d1d5db;
+    }
+
+    button.danger {
+      background: var(--danger);
+    }
+
+    button.danger:hover {
+      background: #b91c1c;
+    }
+
+    ul {
+      padding-left: 18px;
+      margin: 8px 0 0;
+    }
+
+    li {
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .tag-unread {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      margin-right: 6px;
+    }
+
+    .login-card {
+      max-width: 420px;
+      margin: 90px auto 0;
+      padding: 20px 24px 22px;
+    }
+
+    .login-subtitle {
+      margin-top: 4px;
+      margin-bottom: 10px;
+    }
+
+    .auth-form {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="password"] {
+      width: 100%;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .error-text {
+      color: #dc2626;
+      margin-top: 6px;
+      font-size: 13px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 0;
+      font-size: 16px;
+      color: var(--text-muted);
+    }
+    .loading-skeleton {
+      background: #f3f4f6;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .loading-skeleton::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -150px;
+      width: 100px;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+      animation: shimmer 1.2s infinite;
+    }
+
+    .skeleton-line {
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+
+    .skeleton-line.short {
+      width: 60%;
+    }
+
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    .toast {
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 16px;
+      margin-bottom: 10px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-soft);
+      opacity: 0;
+      animation: fadeInOut 2.5s forwards;
+      font-size: 14px;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(-6px); }
+      10% { opacity: 1; transform: translateY(0); }
+      90% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-6px); }
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-approved { background: #dcfce7; color: #166534; }
+    .status-rejected { background: #fee2e2; color: #991b1b; }
+
+    @keyframes shimmer {
+      0% { left: -150px; }
+      100% { left: 150%; }
+    }
+
+    .fade-enter-active,
+    .fade-leave-active {
+      transition: opacity 0.25s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+      opacity: 0;
+    }
   </style>
 </head>
 <body>
@@ -24,7 +388,6 @@
       <div v-if="user">
         <span>{{ user.username }} ({{ user.role }})</span>
         <span class="badge" title="Unread notifications">{{ unreadCount }}</span>
-        <button @click="refreshNotifications">Обновить</button>
         <button @click="logout">Выйти</button>
       </div>
     </header>
@@ -32,61 +395,125 @@
     <div v-if="loading">Загрузка...</div>
 
     <div v-else>
-      <div v-if="!user">
+        <div id="toast" class="toast-container"></div>
+      <div v-if="!user" class="card login-card">
         <h3>Вход</h3>
-        <form @submit.prevent="login">
-          <div>
-            <label>Логин: <input v-model="loginForm.username" required></label>
+        <div class="muted login-subtitle">
+          Введите логин и пароль, выданные кадровой службой.
+        </div>
+        <form @submit.prevent="login" class="auth-form">
+          <div class="form-group">
+            <label for="login-username">Логин</label>
+            <input
+              id="login-username"
+              type="text"
+              v-model="loginForm.username"
+              required
+            >
           </div>
-          <div>
-            <label>Пароль: <input type="password" v-model="loginForm.password" required></label>
+          <div class="form-group">
+            <label for="login-password">Пароль</label>
+            <input
+              id="login-password"
+              type="password"
+              v-model="loginForm.password"
+              required
+            >
           </div>
-          <button type="submit">Войти</button>
-          <div style="color: red" v-if="error">{{ error }}</div>
+          <div class="form-actions">
+            <button type="submit">Войти</button>
+          </div>
         </form>
+        <div class="error-text" v-if="error">{{ error }}</div>
       </div>
 
       <div v-else>
-        <section v-if="user.role === 'employee'">
+        <section v-if="user.role === 'employee'" class="card">
           <h3>Мои данные</h3>
-          <div>Остаток отпуска: {{ balance }} дней</div>
-          <h4>Мои заявки</h4>
-          <table>
-            <thead>
-              <tr><th>ID</th><th>Период</th><th>Статус</th><th>Подтверждено</th><th>Действия</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="req in myRequests" :key="req.id">
-                <td>{{ req.id }}</td>
-                <td>{{ req.start_date }} — {{ req.end_date }}</td>
-                <td>{{ req.status }}</td>
-                <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
-                <td>
-                  <button v-if="!req.confirmed_by_employee" @click="confirmRequest(req.id)">Подтвердить ознакомление</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <h4>Новая заявка</h4>
-          <form @submit.prevent="createRequest">
-            <label>Начало: <input type="date" v-model="newRequest.start_date" required></label>
-            <label>Конец: <input type="date" v-model="newRequest.end_date" required></label>
-            <button type="submit">Отправить</button>
-          </form>
+          <div class="muted">Личный кабинет сотрудника. Здесь вы можете видеть остаток отпуска и управлять своими заявками.</div>
+
+          <transition name="fade">
+            <div v-if="loadingEmployeeData" class="loading-skeleton" style="margin-top: 8px;">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+
+            <div v-else>
+              <div>Остаток отпуска: {{ balance }} дней</div>
+              <h4>Мои заявки</h4>
+              <table>
+                <thead>
+                  <tr><th>ID</th><th>Период</th><th>Статус</th><th>Подтверждено</th><th>Действия</th></tr>
+                </thead>
+                <tbody v-if="myRequests.length">
+                  <tr v-for="req in myRequests" :key="req.id">
+                    <td>{{ req.id }}</td>
+                    <td>{{ req.start_date }} — {{ req.end_date }}</td>
+                    <td>
+                      <span
+                        class="status-pill"
+                        :class="{
+                          'status-approved': req.status === 'approved',
+                          'status-rejected': req.status === 'rejected',
+                          'status-pending': req.status === 'pending'
+                        }"
+                      >
+                        {{ req.status === 'approved'
+                          ? 'Согласована'
+                          : req.status === 'rejected'
+                            ? 'Отклонена'
+                            : 'На согласовании' }}
+                      </span>
+                    </td>
+                    <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
+                    <td>
+                      <button v-if="!req.confirmed_by_employee" @click="confirmRequest(req.id)">Подтвердить ознакомление</button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tbody v-else>
+                  <tr><td colspan="5" class="muted" style="text-align:center;">Заявок пока нет</td></tr>
+                </tbody>
+              </table>
+              <h4>Новая заявка</h4>
+              <form @submit.prevent="createRequest">
+                <label>Начало: <input type="date" v-model="newRequest.start_date" required></label>
+                <label>Конец: <input type="date" v-model="newRequest.end_date" required></label>
+                <button type="submit">Отправить</button>
+              </form>
+            </div>
+          </transition>
         </section>
 
-        <section v-if="user.role === 'manager'">
+        <section v-if="user.role === 'manager'" class="card">
           <h3>Заявки сотрудников</h3>
+          <div class="muted">Кабинет руководителя. Вы согласовываете заявки сотрудников вашего подразделения.</div>
           <table>
             <thead>
               <tr><th>ID</th><th>Сотрудник</th><th>Период</th><th>Статус</th><th>Подтверждено</th><th>Действия</th></tr>
             </thead>
-            <tbody>
+            <tbody v-if="managerRequests.length">
               <tr v-for="req in managerRequests" :key="req.id">
                 <td>{{ req.id }}</td>
                 <td>{{ req.user.username }}</td>
                 <td>{{ req.start_date }} — {{ req.end_date }}</td>
-                <td>{{ req.status }}</td>
+                <td>
+                  <span
+                    class="status-pill"
+                    :class="{
+                      'status-approved': req.status === 'approved',
+                      'status-rejected': req.status === 'rejected',
+                      'status-pending': req.status === 'pending'
+                    }"
+                  >
+                    {{ req.status === 'approved'
+                      ? 'Согласована'
+                      : req.status === 'rejected'
+                        ? 'Отклонена'
+                        : 'На согласовании' }}
+                  </span>
+                </td>
                 <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
                 <td>
                   <button @click="approveRequest(req.id)">Согласовать</button>
@@ -94,37 +521,77 @@
                 </td>
               </tr>
             </tbody>
+            <tbody v-else>
+              <tr><td colspan="6" class="muted" style="text-align:center;">Заявок пока нет</td></tr>
+            </tbody>
           </table>
         </section>
 
-        <section v-if="user.role === 'hr'">
+        <section v-if="user.role === 'hr'" class="card">
           <h3>Все заявки</h3>
+          <div class="muted">Кабинет кадровой службы. Здесь вы работаете со сводным графиком отпусков.</div>
           <button @click="exportCsv">Экспорт в CSV</button>
           <table>
             <thead>
               <tr><th>ID</th><th>Сотрудник</th><th>Период</th><th>Статус</th><th>Подтверждено</th></tr>
             </thead>
-            <tbody>
+            <tbody v-if="hrRequests.length">
               <tr v-for="req in hrRequests" :key="req.id">
                 <td>{{ req.id }}</td>
                 <td>{{ req.user.username }}</td>
                 <td>{{ req.start_date }} — {{ req.end_date }}</td>
-                <td>{{ req.status }}</td>
+                <td>
+                  <span
+                    class="status-pill"
+                    :class="{
+                      'status-approved': req.status === 'approved',
+                      'status-rejected': req.status === 'rejected',
+                      'status-pending': req.status === 'pending'
+                    }"
+                  >
+                    {{ req.status === 'approved'
+                      ? 'Согласована'
+                      : req.status === 'rejected'
+                        ? 'Отклонена'
+                        : 'На согласовании' }}
+                  </span>
+                </td>
                 <td>{{ req.confirmed_by_employee ? 'Да' : 'Нет' }}</td>
               </tr>
+            </tbody>
+            <tbody v-else>
+              <tr><td colspan="5" class="muted" style="text-align:center;">Заявок пока нет</td></tr>
             </tbody>
           </table>
         </section>
 
-        <section>
-          <h4>Уведомления</h4>
-          <button @click="loadNotifications">Обновить</button>
-          <ul>
-            <li v-for="n in notifications" :key="n.id">
-              <strong v-if="!n.is_read">[Непрочитано]</strong> {{ n.message }} ({{ new Date(n.created_at).toLocaleString() }})
-              <button v-if="!n.is_read" @click="markNotificationRead(n.id)">Отметить прочитанным</button>
-            </li>
-          </ul>
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h3>Уведомления</h3>
+              <div class="muted">Напоминания о заявках и предстоящих отпусках</div>
+            </div>
+          </div>
+
+          <transition name="fade">
+            <div v-if="loadingNotifications" class="loading-skeleton">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+
+            <div v-else-if="notifications.length === 0" class="muted" style="padding: 12px; text-align: center;">
+              Уведомлений нет
+            </div>
+
+            <ul v-else>
+              <li v-for="n in notifications" :key="n.id">
+                <span class="tag-unread" v-if="!n.is_read">Непрочитано</span>
+                {{ n.message }} ({{ new Date(n.created_at).toLocaleString() }})
+                <button v-if="!n.is_read" class="secondary" @click="markNotificationRead(n.id)">Отметить прочитанным</button>
+              </li>
+            </ul>
+          </transition>
         </section>
       </div>
     </div>

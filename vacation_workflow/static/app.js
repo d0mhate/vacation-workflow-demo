@@ -20,11 +20,39 @@ createApp({
       hrRequests: [],
       notifications: [],
       unreadCount: 0,
+      loadingNotifications: false,
+      loadingEmployeeData: false,
+      toastTimeoutId: null,
     };
   },
   methods: {
     csrfHeader() {
       return { 'X-CSRFToken': getCookie('csrftoken') || '' };
+    },
+    showToast(message, type = 'info') {
+      const container = document.getElementById('toast');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      if (type === 'error') {
+        toast.classList.add('toast-error');
+      } else if (type === 'success') {
+        toast.classList.add('toast-success');
+      }
+      toast.textContent = message;
+      container.appendChild(toast);
+      // автоматически удалить тост после завершения анимации
+      setTimeout(() => {
+        if (toast.parentNode === container) {
+          container.removeChild(toast);
+        }
+      }, 2600);
+    },
+    scrollToNotifications() {
+      const el = document.getElementById('notifications-card');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     },
     async fetchJson(url, options = {}) {
       const opts = Object.assign({
@@ -49,7 +77,10 @@ createApp({
         const data = await this.fetchJson('/api/me');
         if (data.authenticated) {
           this.user = data.user;
-          await this.postLoginLoad();
+          // запускаем загрузку данных после логина асинхронно,
+          // чтобы основной UI отрисовался, а уведомления могли
+          // показывать скелетон
+          this.postLoginLoad();
         } else {
           this.user = null;
         }
@@ -64,12 +95,17 @@ createApp({
       await Promise.all([
         this.refreshNotifications(),
         this.loadRoleData(),
+        this.loadNotifications(),
       ]);
     },
     async loadRoleData() {
       if (!this.user) return;
       if (this.user.role === 'employee') {
+        this.loadingEmployeeData = true;
+        // artificial delay to simulate slow backend for "Мои данные"
+        await new Promise(resolve => setTimeout(resolve, 1500));
         await Promise.all([this.loadBalance(), this.loadMyRequests()]);
+        this.loadingEmployeeData = false;
       } else if (this.user.role === 'manager') {
         await this.loadManagerRequests();
       } else if (this.user.role === 'hr') {
@@ -102,19 +138,25 @@ createApp({
       this.unreadCount = 0;
     },
     async loadBalance() {
+      this.loadingEmployeeData = true;
       try {
         const data = await this.fetchJson('/api/vacation/balance');
         this.balance = data.days_remaining;
+        this.loadingEmployeeData = false;
       } catch (err) {
         console.error(err);
+        this.loadingEmployeeData = false;
       }
     },
     async loadMyRequests() {
+      this.loadingEmployeeData = true;
       try {
         const data = await this.fetchJson('/api/vacation/requests/my');
         this.myRequests = data.requests;
+        this.loadingEmployeeData = false;
       } catch (err) {
         console.error(err);
+        this.loadingEmployeeData = false;
       }
     },
     async createRequest() {
@@ -125,16 +167,18 @@ createApp({
         });
         this.newRequest = { start_date: '', end_date: '' };
         await this.loadMyRequests();
+        this.showToast('Заявка отправлена на согласование', 'success');
       } catch (err) {
-        alert(err.message);
+        this.showToast(err.message, 'error');
       }
     },
     async confirmRequest(id) {
       try {
         await this.fetchJson(`/api/vacation/request/${id}/confirm`, { method: 'POST' });
         await this.loadMyRequests();
+        this.showToast('Ознакомление с приказом подтверждено', 'success');
       } catch (err) {
-        alert(err.message);
+        this.showToast(err.message, 'error');
       }
     },
     async loadManagerRequests() {
@@ -149,16 +193,18 @@ createApp({
       try {
         await this.fetchJson(`/api/manager/request/${id}/approve`, { method: 'POST' });
         await this.loadManagerRequests();
+        this.showToast('Заявка согласована', 'success');
       } catch (err) {
-        alert(err.message);
+        this.showToast(err.message, 'error');
       }
     },
     async rejectRequest(id) {
       try {
         await this.fetchJson(`/api/manager/request/${id}/reject`, { method: 'POST' });
         await this.loadManagerRequests();
+        this.showToast('Заявка отклонена', 'success');
       } catch (err) {
-        alert(err.message);
+        this.showToast(err.message, 'error');
       }
     },
     async loadHrRequests() {
@@ -175,6 +221,9 @@ createApp({
           credentials: 'include',
           headers: this.csrfHeader(),
         });
+        if (!response.ok) {
+          throw new Error('Не удалось скачать файл');
+        }
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -182,17 +231,23 @@ createApp({
         a.download = 'vacation_approved.csv';
         a.click();
         window.URL.revokeObjectURL(url);
+        this.showToast('CSV-файл со сводным графиком скачан', 'success');
       } catch (err) {
-        alert('Не удалось скачать файл');
+        this.showToast(err.message || 'Не удалось скачать файл', 'error');
       }
     },
     async loadNotifications() {
       if (!this.user) return;
+      this.loadingNotifications = true;
       try {
+        // artificial delay to simulate slow backend for local testing
+        await new Promise(resolve => setTimeout(resolve, 1500));
         const data = await this.fetchJson('/api/notifications');
         this.notifications = data.notifications;
+        this.loadingNotifications = false;
       } catch (err) {
         console.error(err);
+        this.loadingNotifications = false;
       }
     },
     async refreshNotifications() {
@@ -210,11 +265,11 @@ createApp({
         await Promise.all([this.loadNotifications(), this.refreshNotifications()]);
       } catch (err) {
         console.error(err);
+        this.showToast('Не удалось отметить уведомление прочитанным', 'error');
       }
     },
   },
   async mounted() {
     await this.loadMe();
-    await this.loadNotifications();
   },
 }).mount('#app');

@@ -142,7 +142,7 @@ def manager_approve(request, pk):
         return _json_error('Request not found', status=404)
     vacation_request.status = VacationRequest.Status.APPROVED
     vacation_request.save(update_fields=['status'])
-    _create_notification(vacation_request.user, f"Your vacation request #{vacation_request.id} was approved.")
+    _create_notification(vacation_request.user, f"Ваша заявка на отпуск №{vacation_request.id} была согласована.")
     return JsonResponse({'request': _serialize_request(vacation_request)})
 
 
@@ -157,7 +157,7 @@ def manager_reject(request, pk):
         return _json_error('Request not found', status=404)
     vacation_request.status = VacationRequest.Status.REJECTED
     vacation_request.save(update_fields=['status'])
-    _create_notification(vacation_request.user, f"Your vacation request #{vacation_request.id} was rejected.")
+    _create_notification(vacation_request.user, f"Ваша заявка на отпуск №{vacation_request.id} была отклонена.")
     return JsonResponse({'request': _serialize_request(vacation_request)})
 
 
