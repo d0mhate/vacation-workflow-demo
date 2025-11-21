@@ -1,7 +1,8 @@
 PYTHON ?= python
 MANAGE := vacation_workflow/manage.py
+URL := localhost:8000
 
-.PHONY: help install migrate superuser demo-users run setup start db
+.PHONY: help install migrate superuser demo-users run setup start db stop logs
 
 help:
 	@echo "Available targets:"
@@ -27,11 +28,15 @@ demo-users:
 	$(PYTHON) $(MANAGE) seed_demo_users
 
 run:
-	$(PYTHON) $(MANAGE) runserver 127.0.0.1:8000
+	@echo "Starting Django..."
+	$(PYTHON) $(MANAGE) runserver $(URL)
+
+logs:
+	@tail -f /tmp/django.log
 
 db:
 	$(PYTHON) $(MANAGE) dbshell
 
-setup: install migrate
+setup: install migrate demo-users
 
 start: setup run
