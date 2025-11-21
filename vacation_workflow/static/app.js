@@ -16,12 +16,20 @@ createApp({
       error: '',
       balance: 0,
       myRequests: [],
+      sortMyField: 'id',
+      sortMyDirection: 'asc',
       managerRequests: [],
+      sortManagerField: 'id',
+      sortManagerDirection: 'asc',
       hrRequests: [],
+      sortHrField: 'id',
+      sortHrDirection: 'asc',
       notifications: [],
       unreadCount: 0,
       loadingNotifications: false,
       loadingEmployeeData: false,
+      loadingManagerData: false,
+      loadingHrData: false,
       toastTimeoutId: null,
     };
   },
@@ -103,13 +111,21 @@ createApp({
       if (this.user.role === 'employee') {
         this.loadingEmployeeData = true;
         // artificial delay to simulate slow backend for "Мои данные"
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await Promise.all([this.loadBalance(), this.loadMyRequests()]);
         this.loadingEmployeeData = false;
       } else if (this.user.role === 'manager') {
+        this.loadingManagerData = true;
+        // artificial delay to simulate slow backend for локальное тестирование
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await this.loadManagerRequests();
+        this.loadingManagerData = false;
       } else if (this.user.role === 'hr') {
+        this.loadingHrData = true;
+        // artificial delay to simulate slow backend for локальное тестирование
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await this.loadHrRequests();
+        this.loadingHrData = false;
       }
     },
     async login() {
@@ -241,7 +257,7 @@ createApp({
       this.loadingNotifications = true;
       try {
         // artificial delay to simulate slow backend for local testing
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const data = await this.fetchJson('/api/notifications');
         this.notifications = data.notifications;
         this.loadingNotifications = false;
@@ -266,6 +282,123 @@ createApp({
       } catch (err) {
         console.error(err);
         this.showToast('Не удалось отметить уведомление прочитанным', 'error');
+      }
+    },
+
+  sortedMyRequests() {
+    const list = [...this.myRequests];
+    if (!this.sortMyField) {
+      return list;
+    }
+    const dir = this.sortMyDirection === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      if (this.sortMyField === 'id') {
+        return dir * (a.id - b.id);
+      }
+      if (this.sortMyField === 'period') {
+        const aDate = a.start_date || '';
+        const bDate = b.start_date || '';
+        return dir * aDate.localeCompare(bDate);
+      }
+      if (this.sortMyField === 'status') {
+        const aStatus = a.status || '';
+        const bStatus = b.status || '';
+        return dir * aStatus.localeCompare(bStatus);
+      }
+      if (this.sortMyField === 'confirmed' || this.sortMyField === 'actions') {
+        const aVal = a.confirmed_by_employee ? 1 : 0;
+        const bVal = b.confirmed_by_employee ? 1 : 0;
+        return dir * (aVal - bVal);
+      }
+      return 0;
+    });
+    return list;
+  },
+
+  sortedManagerRequests() {
+    const list = [...this.managerRequests];
+    if (!this.sortManagerField) {
+      return list;
+    }
+    const dir = this.sortManagerDirection === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      if (this.sortManagerField === 'id') {
+        return dir * (a.id - b.id);
+      }
+      if (this.sortManagerField === 'period') {
+        const aDate = a.start_date || '';
+        const bDate = b.start_date || '';
+        return dir * aDate.localeCompare(bDate);
+      }
+      if (this.sortManagerField === 'status') {
+        const aStatus = a.status || '';
+        const bStatus = b.status || '';
+        return dir * aStatus.localeCompare(bStatus);
+      }
+      if (this.sortManagerField === 'confirmed') {
+        const aVal = a.confirmed_by_employee ? 1 : 0;
+        const bVal = b.confirmed_by_employee ? 1 : 0;
+        return dir * (aVal - bVal);
+      }
+      return 0;
+    });
+    return list;
+  },
+
+  sortedHrRequests() {
+    const list = [...this.hrRequests];
+    if (!this.sortHrField) {
+      return list;
+    }
+    const dir = this.sortHrDirection === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      if (this.sortHrField === 'id') {
+        return dir * (a.id - b.id);
+      }
+      if (this.sortHrField === 'period') {
+        const aDate = a.start_date || '';
+        const bDate = b.start_date || '';
+        return dir * aDate.localeCompare(bDate);
+      }
+      if (this.sortHrField === 'status') {
+        const aStatus = a.status || '';
+        const bStatus = b.status || '';
+        return dir * aStatus.localeCompare(bStatus);
+      }
+      if (this.sortHrField === 'confirmed') {
+        const aVal = a.confirmed_by_employee ? 1 : 0;
+        const bVal = b.confirmed_by_employee ? 1 : 0;
+        return dir * (aVal - bVal);
+      }
+      return 0;
+    });
+    return list;
+  },
+
+    toggleMySort(field) {
+      if (this.sortMyField === field) {
+        this.sortMyDirection = this.sortMyDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortMyField = field;
+        this.sortMyDirection = 'asc';
+      }
+    },
+
+    toggleManagerSort(field) {
+      if (this.sortManagerField === field) {
+        this.sortManagerDirection = this.sortManagerDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortManagerField = field;
+        this.sortManagerDirection = 'asc';
+      }
+    },
+
+    toggleHrSort(field) {
+      if (this.sortHrField === field) {
+        this.sortHrDirection = this.sortHrDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.sortHrField = field;
+        this.sortHrDirection = 'asc';
       }
     },
   },

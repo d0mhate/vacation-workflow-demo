@@ -142,7 +142,11 @@ def manager_approve(request, pk):
         return _json_error('Request not found', status=404)
     vacation_request.status = VacationRequest.Status.APPROVED
     vacation_request.save(update_fields=['status'])
-    _create_notification(vacation_request.user, f"Ваша заявка на отпуск №{vacation_request.id} была согласована.")
+    _create_notification(
+        user=vacation_request.user,
+        type=Notification.Type.REQUEST_APPROVED,
+        request=vacation_request,
+    )
     return JsonResponse({'request': _serialize_request(vacation_request)})
 
 
@@ -157,7 +161,11 @@ def manager_reject(request, pk):
         return _json_error('Request not found', status=404)
     vacation_request.status = VacationRequest.Status.REJECTED
     vacation_request.save(update_fields=['status'])
-    _create_notification(vacation_request.user, f"Ваша заявка на отпуск №{vacation_request.id} была отклонена.")
+    _create_notification(
+        user=vacation_request.user,
+        type=Notification.Type.REQUEST_REJECTED,
+        request=vacation_request,
+    )
     return JsonResponse({'request': _serialize_request(vacation_request)})
 
 
@@ -243,11 +251,27 @@ def _serialize_request(request_obj: VacationRequest):
 def _serialize_notification(notification: Notification):
     return {
         'id': notification.id,
-        'message': notification.message,
+        'type': notification.type,
+        'request_id': notification.request.id if notification.request else None,
+        'message': _build_notification_message(notification),
         'is_read': notification.is_read,
         'created_at': notification.created_at.isoformat(),
     }
 
 
-def _create_notification(user: User, message: str):
-    Notification.objects.create(user=user, message=message)
+def _build_notification_message(notification: Notification):
+    if notification.type == Notification.Type.REQUEST_APPROVED and notification.request:
+        return f"Ваша заявка на отпуск №{notification.request.id} была согласована."
+    if notification.type == Notification.Type.REQUEST_REJECTED and notification.request:
+        return f"Ваша заявка на отпуск №{notification.request.id} была отклонена."
+    if notification.type == Notification.Type.REQUEST_CREATED and notification.request:
+        return f"Создана новая заявка на отпуск №{notification.request.id}."
+    return "Уведомление"
+
+
+def _create_notification(user: User, type: str, request: VacationRequest = None):
+    Notification.objects.create(
+        user=user,
+        type=type,
+        request=request
+    )

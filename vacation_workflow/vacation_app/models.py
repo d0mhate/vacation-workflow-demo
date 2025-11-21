@@ -51,10 +51,21 @@ class VacationSchedule(models.Model):
 
 
 class Notification(models.Model):
+    class Type(models.TextChoices):
+        REQUEST_APPROVED = 'request_approved', 'Request Approved'
+        REQUEST_REJECTED = 'request_rejected', 'Request Rejected'
+        REQUEST_CREATED = 'request_created', 'Request Created'
+        REMINDER_UPCOMING = 'reminder_upcoming', 'Upcoming Vacation Reminder'
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    message = models.TextField()
+    type = models.CharField(
+        max_length=50,
+        choices=Type.choices,
+        default=Type.REQUEST_CREATED,
+    )
+    request = models.ForeignKey(VacationRequest, null=True, blank=True, on_delete=models.CASCADE)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Notification for {self.user.username}: {self.message[:20]}"
+        return f"Notification for {self.user.username}: {self.type}"
