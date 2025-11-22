@@ -35,6 +35,7 @@ createApp({
       loadingHrData: false,
       toastTimeoutId: null,
       showProfileModal: false,
+      balanceAutoRefreshId: null,
       profileForm: { first_name: '', last_name: '' },
     };
   },
@@ -87,6 +88,28 @@ createApp({
           container.removeChild(toast);
         }
       }, 2600);
+    },
+
+    startBalanceAutoRefresh() {
+      // автообновление только для сотрудника, чтобы сводка отпусков была актуальной
+      this.stopBalanceAutoRefresh();
+      if (!this.user || this.user.role !== 'employee') {
+        return;
+      }
+      this.balanceAutoRefreshId = setInterval(() => {
+        // если пользователь все еще сотрудник на этой странице — обновляем остаток и сводку
+        if (this.user && this.user.role === 'employee') {
+          this.loadBalance(true); // тихое обновление без перерисовки всего блока
+          this.fetchVacationBalances();
+        }
+      }, 2000); // каждые 2 секунды
+    },
+
+    stopBalanceAutoRefresh() {
+      if (this.balanceAutoRefreshId) {
+        clearInterval(this.balanceAutoRefreshId);
+        this.balanceAutoRefreshId = null;
+      }
     },
     scrollToNotifications() {
       const el = document.getElementById('notifications-card');
@@ -178,11 +201,13 @@ createApp({
           body: JSON.stringify(this.loginForm),
         });
         await this.loadMe();
+        this.startBalanceAutoRefresh();
       } catch (err) {
         this.error = err.message;
       }
     },
     async logout() {
+      this.stopBalanceAutoRefresh();
       try {
         await this.fetchJson('/api/logout', { method: 'POST' });
       } catch (err) {
@@ -197,15 +222,19 @@ createApp({
       this.notifications = [];
       this.unreadCount = 0;
     },
-    async loadBalance() {
-      this.loadingEmployeeData = true;
+    async loadBalance(silent = false) {
+      if (!silent) {
+        this.loadingEmployeeData = true;
+      }
       try {
         const data = await this.fetchJson('/api/vacation/balance');
         this.balance = data.days_remaining;
-        this.loadingEmployeeData = false;
       } catch (err) {
         console.error(err);
-        this.loadingEmployeeData = false;
+      } finally {
+        if (!silent) {
+          this.loadingEmployeeData = false;
+        }
       }
     },
     async loadMyRequests() {
@@ -284,7 +313,12 @@ createApp({
     async confirmRequest(id) {
       try {
         await this.fetchJson(`/api/vacation/request/${id}/confirm`, { method: 'POST' });
-        await this.loadMyRequests();
+        // обновляем список заявок и остаток дней отпуска, а также сводку по остаткам
+        await Promise.all([
+          this.loadMyRequests(),
+          this.loadBalance(true),
+          this.fetchVacationBalances(),
+        ]);
         this.showToast('Ознакомление с приказом подтверждено', 'success');
       } catch (err) {
         this.showToast(err.message, 'error');
@@ -301,7 +335,10 @@ createApp({
     async approveRequest(id) {
       try {
         await this.fetchJson(`/api/manager/request/${id}/approve`, { method: 'POST' });
-        await this.loadManagerRequests();
+        await Promise.all([
+          this.loadManagerRequests(),
+          this.fetchVacationBalances(),
+        ]);
         this.showToast('Заявка согласована', 'success');
       } catch (err) {
         this.showToast(err.message, 'error');
@@ -310,7 +347,10 @@ createApp({
     async rejectRequest(id) {
       try {
         await this.fetchJson(`/api/manager/request/${id}/reject`, { method: 'POST' });
-        await this.loadManagerRequests();
+        await Promise.all([
+          this.loadManagerRequests(),
+          this.fetchVacationBalances(),
+        ]);
         this.showToast('Заявка отклонена', 'success');
       } catch (err) {
         this.showToast(err.message, 'error');
@@ -513,5 +553,8 @@ createApp({
   },
   async mounted() {
     await this.loadMe();
+    if (this.user && this.user.role === 'employee') {
+      this.startBalanceAutoRefresh();
+    }
   },
 }).mount('#app');

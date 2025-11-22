@@ -79,7 +79,8 @@ def vacation_balance(request):
         defaults={'days_remaining': 0},
     )
 
-    return JsonResponse({'days_remaining': balance.days_remaining})
+    data = _serialize_balance(balance)
+    return JsonResponse(data)
 
 
 @login_required
@@ -117,10 +118,15 @@ def create_request(request):
     # количество дней в заявке (включая обе даты)
     days_requested = (end_date - start_date).days + 1
 
-    # проверяем остаток за год начала отпуска
+    # проверяем фактический остаток за год начала отпуска
     year = start_date.year
     balance = VacationBalance.objects.filter(user=request.user, year=year).first()
-    available = balance.days_remaining if balance else 0
+    if balance:
+        initial_days = balance.days_remaining
+        planned_days = _calculate_planned_days(request.user, year)
+        available = max(initial_days - planned_days, 0)
+    else:
+        available = 0
 
     if days_requested > available:
         return _json_error(
@@ -267,11 +273,33 @@ def _serialize_user(user: User):
         'manager_id': user.manager_id,
     }
 
-def _serialize_balance(balance):
+
+def _calculate_planned_days(user: User, year: int) -> int:
+    """Считает количество дней уже утверждённых и подтверждённых заявок за указанный год."""
+    qs = VacationRequest.objects.filter(
+        user=user,
+        start_date__year=year,
+        status=VacationRequest.Status.APPROVED,
+        confirmed_by_employee=True,
+    )
+    total_days = 0
+    for req in qs:
+        total_days += (req.end_date - req.start_date).days + 1
+    return total_days
+
+
+def _serialize_balance(balance: VacationBalance):
+    initial_days = balance.days_remaining
+    planned_days = _calculate_planned_days(balance.user, balance.year)
+    remaining_days = max(initial_days - planned_days, 0)
     return {
         'id': balance.id,
         'year': balance.year,
-        'days_remaining': balance.days_remaining,
+        'initial_days': initial_days,
+        'planned_days': planned_days,
+        'remaining_days': remaining_days,
+        # для обратной совместимости с фронтом
+        'days_remaining': remaining_days,
         'user': _serialize_user(balance.user),
     }
 
