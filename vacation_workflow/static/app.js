@@ -41,6 +41,7 @@ createApp({
       hrSchedule: [],
       hrScheduleYear: new Date().getFullYear(),
       loadingHrSchedule: false,
+      hrCalendarMonths: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
     };
   },
   methods: {
@@ -86,29 +87,24 @@ createApp({
       }
       toast.textContent = message;
       container.appendChild(toast);
-      // автоматически удалить тост после завершения анимации
       setTimeout(() => {
         if (toast.parentNode === container) {
           container.removeChild(toast);
         }
       }, 2600);
     },
-
     startBalanceAutoRefresh() {
-      // автообновление только для сотрудника, чтобы сводка отпусков была актуальной
       this.stopBalanceAutoRefresh();
       if (!this.user || this.user.role !== 'employee') {
         return;
       }
       this.balanceAutoRefreshId = setInterval(() => {
-        // если пользователь все еще сотрудник на этой странице — обновляем остаток и сводку
         if (this.user && this.user.role === 'employee') {
-          this.loadBalance(true); // тихое обновление без перерисовки всего блока
+          this.loadBalance(true);
           this.fetchVacationBalances();
         }
-      }, 2000); // каждые 2 секунды
+      }, 2000);
     },
-
     stopBalanceAutoRefresh() {
       if (this.balanceAutoRefreshId) {
         clearInterval(this.balanceAutoRefreshId);
@@ -144,9 +140,6 @@ createApp({
         const data = await this.fetchJson('/api/me');
         if (data.authenticated) {
           this.user = data.user;
-          // запускаем загрузку данных после логина асинхронно,
-          // чтобы основной UI отрисовался, а уведомления могли
-          // показывать скелетон
           this.postLoginLoad();
         } else {
           this.user = null;
@@ -164,12 +157,14 @@ createApp({
         this.loadRoleData(),
         this.loadNotifications(),
       ]);
+      if (this.user && this.user.role === 'employee') {
+        this.startBalanceAutoRefresh();
+      }
     },
     async loadRoleData() {
       if (!this.user) return;
       if (this.user.role === 'employee') {
         this.loadingEmployeeData = true;
-        // artificial delay to simulate slow backend for "Мои данные"
         await new Promise(resolve => setTimeout(resolve, 1000));
         await Promise.all([
           this.loadBalance(),
@@ -179,7 +174,6 @@ createApp({
         this.loadingEmployeeData = false;
       } else if (this.user.role === 'manager') {
         this.loadingManagerData = true;
-        // artificial delay to simulate slow backend for локальное тестирование
         await new Promise(resolve => setTimeout(resolve, 1000));
         await Promise.all([
           this.loadManagerRequests(),
@@ -188,12 +182,11 @@ createApp({
         this.loadingManagerData = false;
       } else if (this.user.role === 'hr') {
         this.loadingHrData = true;
-        // artificial delay to simulate slow backend for локальное тестирование
         await new Promise(resolve => setTimeout(resolve, 1000));
         await Promise.all([
           this.loadHrRequests(),
           this.fetchVacationBalances(),
-          this.loadHrSchedule(),          
+          this.loadHrSchedule(),
         ]);
         this.loadingHrData = false;
       }
@@ -206,7 +199,6 @@ createApp({
           body: JSON.stringify(this.loginForm),
         });
         await this.loadMe();
-        this.startBalanceAutoRefresh();
       } catch (err) {
         this.error = err.message;
       }
@@ -247,14 +239,13 @@ createApp({
       try {
         const data = await this.fetchJson('/api/vacation/requests/my');
         this.myRequests = data.requests;
-        this.loadingEmployeeData = false;
       } catch (err) {
         console.error(err);
+      } finally {
         this.loadingEmployeeData = false;
       }
     },
     async createRequest() {
-      // пересчитываем данные по диапазону дат
       this.updateDateRangeInfo();
 
       if (!this.newRequest.start_date || !this.newRequest.end_date) {
@@ -300,12 +291,10 @@ createApp({
       const end = new Date(end_date);
       const diffMs = end.getTime() - start.getTime();
       const oneDayMs = 24 * 60 * 60 * 1000;
-      const days = Math.round(diffMs / oneDayMs) + 1; // включая оба дня
+      const days = Math.round(diffMs / oneDayMs) + 1;
 
-      // базовая проверка диапазона
       this.dateRangeInfo = { days, valid: true };
 
-      // проверка: нельзя выбрать больше, чем доступный остаток отпусков
       const available = this.balance || 0;
       if (available > 0 && days > available) {
         this.dateRangeInfo.valid = false;
@@ -318,7 +307,6 @@ createApp({
     async confirmRequest(id) {
       try {
         await this.fetchJson(`/api/vacation/request/${id}/confirm`, { method: 'POST' });
-        // обновляем список заявок и остаток дней отпуска, а также сводку по остаткам
         await Promise.all([
           this.loadMyRequests(),
           this.loadBalance(true),
@@ -394,7 +382,6 @@ createApp({
       if (!this.user) return;
       this.loadingNotifications = true;
       try {
-        // artificial delay to simulate slow backend for local testing
         await new Promise(resolve => setTimeout(resolve, 1000));
         const data = await this.fetchJson('/api/notifications');
         const raw = data.notifications || [];
@@ -402,31 +389,25 @@ createApp({
           ...n,
           display_text: this.formatNotificationText(n),
         }));
-        this.loadingNotifications = false;
       } catch (err) {
         console.error(err);
+      } finally {
         this.loadingNotifications = false;
       }
     },
     formatNotificationText(notification) {
       if (!notification) return '';
-
-      // если на бэкенде уже пришло человеко‑читаемое сообщение
       if (notification.message) {
         return notification.message;
       }
-
       const created = notification.created_at || '';
       const type = notification.type || '';
-
       if (type === 'vacation_reminder_14d') {
         return `Через 14 дней начинается отпуск по одной из ваших заявок (создано: ${created})`;
       }
       if (type === 'vacation_start_today') {
         return `Сегодня начинается отпуск по одной из ваших заявок (создано: ${created})`;
       }
-
-      // дефолтный вариант, если тип не распознан
       return `Уведомление (${created})`;
     },
     async refreshNotifications() {
@@ -457,7 +438,6 @@ createApp({
     },
     setHrScheduleYear(year) {
       this.hrScheduleYear = year;
-      // перезагружаем график для нового года
       this.loadHrSchedule();
     },
     async loadHrSchedule() {
@@ -476,106 +456,11 @@ createApp({
       if (!start || !end) return '';
       const startDate = new Date(start);
       const endDate = new Date(end);
-
-      // если вдруг дата не распарсилась
       if (isNaN(startDate) || isNaN(endDate)) return '';
-
       const diffMs = endDate.getTime() - startDate.getTime();
-      // +1 чтобы считать оба дня включительно
       const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-
       return days;
     },
-  sortedMyRequests() {
-    const list = [...this.myRequests];
-    if (!this.sortMyField) {
-      return list;
-    }
-    const dir = this.sortMyDirection === 'asc' ? 1 : -1;
-    list.sort((a, b) => {
-      if (this.sortMyField === 'id') {
-        return dir * (a.id - b.id);
-      }
-      if (this.sortMyField === 'period') {
-        const aDate = a.start_date || '';
-        const bDate = b.start_date || '';
-        return dir * aDate.localeCompare(bDate);
-      }
-      if (this.sortMyField === 'status') {
-        const aStatus = a.status || '';
-        const bStatus = b.status || '';
-        return dir * aStatus.localeCompare(bStatus);
-      }
-      if (this.sortMyField === 'confirmed' || this.sortMyField === 'actions') {
-        const aVal = a.confirmed_by_employee ? 1 : 0;
-        const bVal = b.confirmed_by_employee ? 1 : 0;
-        return dir * (aVal - bVal);
-      }
-      return 0;
-    });
-    return list;
-  },
-
-  sortedManagerRequests() {
-    const list = [...this.managerRequests];
-    if (!this.sortManagerField) {
-      return list;
-    }
-    const dir = this.sortManagerDirection === 'asc' ? 1 : -1;
-    list.sort((a, b) => {
-      if (this.sortManagerField === 'id') {
-        return dir * (a.id - b.id);
-      }
-      if (this.sortManagerField === 'period') {
-        const aDate = a.start_date || '';
-        const bDate = b.start_date || '';
-        return dir * aDate.localeCompare(bDate);
-      }
-      if (this.sortManagerField === 'status') {
-        const aStatus = a.status || '';
-        const bStatus = b.status || '';
-        return dir * aStatus.localeCompare(bStatus);
-      }
-      if (this.sortManagerField === 'confirmed') {
-        const aVal = a.confirmed_by_employee ? 1 : 0;
-        const bVal = b.confirmed_by_employee ? 1 : 0;
-        return dir * (aVal - bVal);
-      }
-      return 0;
-    });
-    return list;
-  },
-
-  sortedHrRequests() {
-    const list = [...this.hrRequests];
-    if (!this.sortHrField) {
-      return list;
-    }
-    const dir = this.sortHrDirection === 'asc' ? 1 : -1;
-    list.sort((a, b) => {
-      if (this.sortHrField === 'id') {
-        return dir * (a.id - b.id);
-      }
-      if (this.sortHrField === 'period') {
-        const aDate = a.start_date || '';
-        const bDate = b.start_date || '';
-        return dir * aDate.localeCompare(bDate);
-      }
-      if (this.sortHrField === 'status') {
-        const aStatus = a.status || '';
-        const bStatus = b.status || '';
-        return dir * aStatus.localeCompare(bStatus);
-      }
-      if (this.sortHrField === 'confirmed') {
-        const aVal = a.confirmed_by_employee ? 1 : 0;
-        const bVal = b.confirmed_by_employee ? 1 : 0;
-        return dir * (aVal - bVal);
-      }
-      return 0;
-    });
-    return list;
-  },
-
     toggleMySort(field) {
       if (this.sortMyField === field) {
         this.sortMyDirection = this.sortMyDirection === 'asc' ? 'desc' : 'asc';
@@ -584,7 +469,6 @@ createApp({
         this.sortMyDirection = 'asc';
       }
     },
-
     toggleManagerSort(field) {
       if (this.sortManagerField === field) {
         this.sortManagerDirection = this.sortManagerDirection === 'asc' ? 'desc' : 'asc';
@@ -593,7 +477,6 @@ createApp({
         this.sortManagerDirection = 'asc';
       }
     },
-
     toggleHrSort(field) {
       if (this.sortHrField === field) {
         this.sortHrDirection = this.sortHrDirection === 'asc' ? 'desc' : 'asc';
@@ -601,6 +484,127 @@ createApp({
         this.sortHrField = field;
         this.sortHrDirection = 'asc';
       }
+    },
+  },
+  computed: {
+    sortedMyRequests() {
+      const list = [...this.myRequests];
+      if (!this.sortMyField) {
+        return list;
+      }
+      const dir = this.sortMyDirection === 'asc' ? 1 : -1;
+      list.sort((a, b) => {
+        if (this.sortMyField === 'id') {
+          return dir * (a.id - b.id);
+        }
+        if (this.sortMyField === 'period') {
+          const aDate = a.start_date || '';
+          const bDate = b.start_date || '';
+          return dir * aDate.localeCompare(bDate);
+        }
+        if (this.sortMyField === 'status') {
+          const aStatus = a.status || '';
+          const bStatus = b.status || '';
+          return dir * aStatus.localeCompare(bStatus);
+        }
+        if (this.sortMyField === 'confirmed' || this.sortMyField === 'actions') {
+          const aVal = a.confirmed_by_employee ? 1 : 0;
+          const bVal = b.confirmed_by_employee ? 1 : 0;
+          return dir * (aVal - bVal);
+        }
+        return 0;
+      });
+      return list;
+    },
+    sortedManagerRequests() {
+      const list = [...this.managerRequests];
+      if (!this.sortManagerField) {
+        return list;
+      }
+      const dir = this.sortManagerDirection === 'asc' ? 1 : -1;
+      list.sort((a, b) => {
+        if (this.sortManagerField === 'id') {
+          return dir * (a.id - b.id);
+        }
+        if (this.sortManagerField === 'period') {
+          const aDate = a.start_date || '';
+          const bDate = b.start_date || '';
+          return dir * aDate.localeCompare(bDate);
+        }
+        if (this.sortManagerField === 'status') {
+          const aStatus = a.status || '';
+          const bStatus = b.status || '';
+          return dir * aStatus.localeCompare(bStatus);
+        }
+        if (this.sortManagerField === 'confirmed') {
+          const aVal = a.confirmed_by_employee ? 1 : 0;
+          const bVal = b.confirmed_by_employee ? 1 : 0;
+          return dir * (aVal - bVal);
+        }
+        return 0;
+      });
+      return list;
+    },
+    sortedHrRequests() {
+      const list = [...this.hrRequests];
+      if (!this.sortHrField) {
+        return list;
+      }
+      const dir = this.sortHrDirection === 'asc' ? 1 : -1;
+      list.sort((a, b) => {
+        if (this.sortHrField === 'id') {
+          return dir * (a.id - b.id);
+        }
+        if (this.sortHrField === 'period') {
+          const aDate = a.start_date || '';
+          const bDate = b.start_date || '';
+          return dir * aDate.localeCompare(bDate);
+        }
+        if (this.sortHrField === 'status') {
+          const aStatus = a.status || '';
+          const bStatus = b.status || '';
+          return dir * aStatus.localeCompare(bStatus);
+        }
+        if (this.sortHrField === 'confirmed') {
+          const aVal = a.confirmed_by_employee ? 1 : 0;
+          const bVal = b.confirmed_by_employee ? 1 : 0;
+          return dir * (aVal - bVal);
+        }
+        return 0;
+      });
+      return list;
+    },
+    hrCalendarRows() {
+      // Готовим строки для календарной сетки по месяцам
+      const year = this.hrScheduleYear;
+      return (this.hrSchedule || []).map(entry => {
+        const months = [];
+        for (let m = 0; m < 12; m++) {
+          let hasVacation = false;
+          const periods = [];
+          (entry.periods || []).forEach(p => {
+            const start = new Date(p.start_date);
+            const end = new Date(p.end_date);
+            if (isNaN(start) || isNaN(end)) return;
+            if (start.getFullYear() > year || end.getFullYear() < year) return;
+            const mStart = start.getMonth();
+            const mEnd = end.getMonth();
+            if (m >= mStart && m <= mEnd) {
+              hasVacation = true;
+              periods.push(p);
+            }
+          });
+          months.push({
+            monthIndex: m,
+            hasVacation,
+            periods,
+          });
+        }
+        return {
+          ...entry,
+          months,
+        };
+      });
     },
   },
   watch: {

@@ -123,7 +123,7 @@
                 </div>
                 <div class="requests-grid">
                   <div
-                    v-for="req in sortedMyRequests()"
+                    v-for="req in sortedMyRequests"
                     :key="req.id"
                     class="request-card"
                     :class="{ 'request-card--not-approved': req.status !== 'approved' }"
@@ -132,7 +132,7 @@
                       Заявка №{{ req.id }}
                     </div>
                     <div class="request-card-period">
-                      Период: {{ req.start_date }} — {{ req.end_date }} ( {{ getDaysBetween(req.start_date, req.end_date) }} .дн )
+                      Период: {{ req.start_date }} — {{ req.end_date }} ({{ getDaysBetween(req.start_date, req.end_date) }} .дн)
                     </div>
                     <div>
                       Статус:
@@ -240,7 +240,7 @@
                 </div>
                 <div class="requests-grid">
                   <div
-                    v-for="req in sortedManagerRequests()"
+                    v-for="req in sortedManagerRequests"
                     :key="req.id"
                     class="request-card"
                     :class="{
@@ -292,6 +292,61 @@
             </div>
           </transition>
         </section>
+        <section v-if="user.role === 'hr'" class="card">
+          <h2 class="card-title">Календарный график отпусков (по месяцам)</h2>
+          <p class="muted" style="margin-bottom: 8px;">
+            По строкам сотрудники, по столбцам месяцы {{ hrScheduleYear }} года. Точка в ячейке означает, что в этот месяц у сотрудника есть утверждённый отпуск.
+          </p>
+
+          <div v-if="loadingHrSchedule" class="table-skeleton">
+            Загрузка календарного графика...
+          </div>
+
+          <div v-else class="calendar-grid-wrapper">
+            <table class="table calendar-table">
+              <thead>
+                <tr>
+                  <th>Сотрудник</th>
+                  <th v-for="month in 12" :key="month">
+                    {{ ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'][month - 1] }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="hrSchedule.length === 0">
+                  <td :colspan="13" class="muted">
+                    На {{ hrScheduleYear }} год согласованных отпусков пока нет
+                  </td>
+                </tr>
+                <tr v-for="row in hrSchedule" :key="'grid-' + row.user_id">
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-name">{{ row.full_name }}</div>
+                      <div class="user-login muted">{{ row.username }}</div>
+                    </div>
+                  </td>
+                  <td v-for="month in 12" :key="month">
+                    <div
+                      class="month-cell"
+                      v-if="row.periods && row.periods.some(p => {
+                        const start = new Date(p.start_date);
+                        const end = new Date(p.end_date);
+                        const m = month - 1;
+                        const y = hrScheduleYear;
+                        return (
+                          (start.getFullYear() < y || (start.getFullYear() === y && start.getMonth() <= m)) &&
+                          (end.getFullYear() > y || (end.getFullYear() === y && end.getMonth() >= m))
+                        );
+                      })"
+                    >
+                      •
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section v-if="user.role === 'hr'" class="card">
           <h3>Все заявки</h3>
@@ -338,7 +393,7 @@
                 </div>
                 <div class="requests-grid">
                   <div
-                    v-for="req in sortedHrRequests()"
+                    v-for="req in sortedHrRequests"
                     :key="req.id"
                     class="request-card"
                     :class="{
