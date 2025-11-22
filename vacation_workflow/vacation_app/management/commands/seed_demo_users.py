@@ -63,14 +63,28 @@ class Command(BaseCommand):
             hr.save()
             self.stdout.write(self.style.SUCCESS("HR user ready: hr/password123"))
 
-            for user, days in (
-                (employee, 20),
-                (manager, 25),
-                (hr, 30),
+            for user, days_2024, days_2025, days_2026 in (
+                (employee, 18, 20, 22),
+                (manager, 23, 25, 27),
+                (hr, 28, 30, 32),
             ):
+                # 2024
                 VacationBalance.objects.update_or_create(
                     user=user,
-                    defaults={"days_remaining": days},
+                    year=2024,
+                    defaults={"days_remaining": days_2024},
+                )
+                # 2025
+                VacationBalance.objects.update_or_create(
+                    user=user,
+                    year=2025,
+                    defaults={"days_remaining": days_2025},
+                )
+                # 2026
+                VacationBalance.objects.update_or_create(
+                    user=user,
+                    year=2026,
+                    defaults={"days_remaining": days_2026},
                 )
 
             self.stdout.write("")

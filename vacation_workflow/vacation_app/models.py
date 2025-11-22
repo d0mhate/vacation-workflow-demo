@@ -18,12 +18,6 @@ class User(AbstractUser):
         return f"{self.username} ({self.role})"
 
 
-class VacationBalance(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vacation_balance')
-    days_remaining = models.PositiveIntegerField(default=0)
-
-    def __str__(self):
-        return f"{self.user.username}: {self.days_remaining} days"
 
 
 class VacationRequest(models.Model):
@@ -72,3 +66,19 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}: {self.type}"
+
+class VacationBalance(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='vacation_balances'
+    )
+    year = models.IntegerField(default=2025)
+    days_remaining = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ('user', 'year')
+        ordering = ['-year']
+
+    def __str__(self):
+        return f'{self.user.username} — {self.year}: {self.days_remaining} дн.'

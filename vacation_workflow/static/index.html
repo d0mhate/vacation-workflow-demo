@@ -69,6 +69,25 @@
 
             <div v-else>
               <div>Остаток отпуска: {{ balance }} дней</div>
+
+              <div v-if="balances && balances.length" class="balances-block">
+                <h4>Остаток отпусков</h4>
+                <table class="simple-table">
+                  <thead>
+                    <tr>
+                      <th>Год</th>
+                      <th>Остаток, дней</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="b in balances" :key="b.id">
+                      <td>{{ b.year }}</td>
+                      <td>{{ b.days_remaining }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
               <h4>Мои заявки</h4>
               <div v-if="myRequests.length">
                 <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0 4px;">
@@ -150,14 +169,32 @@
                 Заявок пока нет
               </div>
               <h4>Новая заявка</h4>
-              <form @submit.prevent="createRequest">
-                <label>Начало: <input type="date" v-model="newRequest.start_date" required></label>
-                <label>Конец: <input type="date" v-model="newRequest.end_date" required></label>
-                <button type="submit">Отправить</button>
+              <form @submit.prevent="createRequest" class="range-form">
+                <div class="range-form-row">
+                  <label>
+                    Начало:
+                    <input
+                      type="date"
+                      v-model="newRequest.start_date"
+                      required
+                    >
+                  </label>
+                  <label>
+                    Конец:
+                    <input
+                      type="date"
+                      v-model="newRequest.end_date"
+                      required
+                    >
+                  </label>
+                  <button type="submit">Отправить</button>
+                </div>
               </form>
             </div>
           </transition>
-        </section>
+        </transition>
+
+      </section>
 
         <section v-if="user.role === 'manager'" class="card">
           <h3>Заявки сотрудников</h3>
@@ -310,7 +347,7 @@
                     }"
                   >
                     <div class="request-card-header">
-                      Заявка №{{ req.id }} — {{ req.user.username }}
+                      Заявка №{{ req.id }} — {{ req.user.first_name }} {{ req.user.last_name }}
                     </div>
                     <div class="request-card-period">
                       Период: {{ req.start_date }} — {{ req.end_date }}
@@ -348,6 +385,34 @@
               </div>
             </div>
           </transition>
+        </section>
+
+        <section v-if="user.role === 'manager' || user.role === 'hr'" class="card">
+          <h4>Сводка остатков отпусков</h4>
+          <div v-if="balances && balances.length">
+            <table class="simple-table">
+              <thead>
+                <tr>
+                  <th>Сотрудник</th>
+                  <th>Год</th>
+                  <th>Остаток, дней</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="b in balances" :key="b.id">
+                  <td>
+                    {{ b.user.first_name || '' }} {{ b.user.last_name || '' }}
+                    <span class="muted" v-if="!b.user.first_name && !b.user.last_name">
+                      ({{ b.user.username }})
+                    </span>
+                  </td>
+                  <td>{{ b.year }}</td>
+                  <td>{{ b.days_remaining }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="muted" style="margin-top: 4px;">Нет данных по остаткам отпусков.</div>
         </section>
 
         <section class="card">

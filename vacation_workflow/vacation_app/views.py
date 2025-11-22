@@ -6,6 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.middleware import csrf
 from django.views.decorators.http import require_GET, require_POST
+from .models import User, VacationRequest, Notification, VacationBalance
+from datetime import date, datetime
+from django.http import JsonResponse
 
 from .models import (
     Notification,
@@ -66,7 +69,16 @@ def me(request):
 def vacation_balance(request):
     if request.user.role != ROLE_EMPLOYEE:
         return HttpResponseForbidden()
-    balance, _ = VacationBalance.objects.get_or_create(user=request.user, defaults={'days_remaining': 0})
+
+    # текущий год — для карточки "Остаток отпусков"
+    current_year = date.today().year
+
+    balance, _ = VacationBalance.objects.get_or_create(
+        user=request.user,
+        year=current_year,
+        defaults={'days_remaining': 0},
+    )
+
     return JsonResponse({'days_remaining': balance.days_remaining})
 
 
@@ -84,8 +96,8 @@ def my_requests(request):
 def create_request(request):
     if request.user.role != ROLE_EMPLOYEE:
         return HttpResponseForbidden()
+
     data = _get_request_data(request)
-    from datetime import date
 
     start_date_str = data.get('start_date')
     end_date_str = data.get('end_date')
@@ -97,6 +109,24 @@ def create_request(request):
         end_date = date.fromisoformat(end_date_str)
     except ValueError:
         return _json_error('Invalid date format. Expected YYYY-MM-DD')
+
+    # базовая проверка диапазона
+    if end_date < start_date:
+        return _json_error('Дата окончания не может быть раньше даты начала')
+
+    # количество дней в заявке (включая обе даты)
+    days_requested = (end_date - start_date).days + 1
+
+    # проверяем остаток за год начала отпуска
+    year = start_date.year
+    balance = VacationBalance.objects.filter(user=request.user, year=year).first()
+    available = balance.days_remaining if balance else 0
+
+    if days_requested > available:
+        return _json_error(
+            f'Недостаточно дней отпуска на {year} год. Доступно: {available}, выбрано: {days_requested}.',
+            status=400,
+        )
 
     vacation_request = VacationRequest.objects.create(
         user=request.user,
@@ -237,6 +267,13 @@ def _serialize_user(user: User):
         'manager_id': user.manager_id,
     }
 
+def _serialize_balance(balance):
+    return {
+        'id': balance.id,
+        'year': balance.year,
+        'days_remaining': balance.days_remaining,
+        'user': _serialize_user(balance.user),
+    }
 
 def _serialize_request(request_obj: VacationRequest):
     return {
@@ -294,3 +331,24 @@ def profile_update(request):
     user.save(update_fields=['first_name', 'last_name'])
 
     return JsonResponse({'user': _serialize_user(user)})
+
+@login_required
+@require_GET
+def vacation_balances(request):
+    user = request.user
+    qs = VacationBalance.objects.select_related('user')
+
+    # Разные выборки по ролям
+    if user.role == User.Roles.EMPLOYEE:
+        qs = qs.filter(user=user)
+    elif user.role == User.Roles.MANAGER:
+        # все сотрудники, у которых этот пользователь — менеджер
+        qs = qs.filter(user__manager=user)
+    elif user.role == User.Roles.HR:
+        # кадровик видит всех
+        pass
+    else:
+        qs = qs.none()
+
+    data = [_serialize_balance(b) for b in qs]
+    return JsonResponse({'balances': data})

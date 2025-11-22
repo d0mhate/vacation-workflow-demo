@@ -515,3 +515,40 @@ request-card--not-approved {
   gap: 8px;
   margin-top: 16px;
 }
+
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.simple-table th,
+.simple-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.simple-table th {
+  font-weight: 600;
+  background: #f9fafb;
+}
+
+/* ---- Date range picker ---- */
+.range-form {
+  margin-top: 8px;
+}
+
+.range-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.range-form-row label {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+}

@@ -13,8 +13,11 @@ createApp({
       loading: true,
       loginForm: { username: '', password: '' },
       newRequest: { start_date: '', end_date: '' },
+      dateRangeInfo: { days: 0, valid: false },
+      dateRangeError: '',
       error: '',
       balance: 0,
+      balances: [],
       myRequests: [],
       sortMyField: 'id',
       sortMyDirection: 'asc',
@@ -141,19 +144,29 @@ createApp({
         this.loadingEmployeeData = true;
         // artificial delay to simulate slow backend for "Мои данные"
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await Promise.all([this.loadBalance(), this.loadMyRequests()]);
+        await Promise.all([
+          this.loadBalance(),
+          this.loadMyRequests(),
+          this.fetchVacationBalances(),
+        ]);
         this.loadingEmployeeData = false;
       } else if (this.user.role === 'manager') {
         this.loadingManagerData = true;
         // artificial delay to simulate slow backend for локальное тестирование
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await this.loadManagerRequests();
+        await Promise.all([
+          this.loadManagerRequests(),
+          this.fetchVacationBalances(),
+        ]);
         this.loadingManagerData = false;
       } else if (this.user.role === 'hr') {
         this.loadingHrData = true;
         // artificial delay to simulate slow backend for локальное тестирование
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await this.loadHrRequests();
+        await Promise.all([
+          this.loadHrRequests(),
+          this.fetchVacationBalances(),
+        ]);
         this.loadingHrData = false;
       }
     },
@@ -180,6 +193,7 @@ createApp({
       this.myRequests = [];
       this.managerRequests = [];
       this.hrRequests = [];
+      this.balances = [];
       this.notifications = [];
       this.unreadCount = 0;
     },
@@ -206,16 +220,65 @@ createApp({
       }
     },
     async createRequest() {
+      // пересчитываем данные по диапазону дат
+      this.updateDateRangeInfo();
+
+      if (!this.newRequest.start_date || !this.newRequest.end_date) {
+        this.showToast('Выберите даты начала и окончания отпуска', 'error');
+        return;
+      }
+
+      if (!this.dateRangeInfo.valid) {
+        this.showToast(this.dateRangeError || 'Некорректный диапазон дат', 'error');
+        return;
+      }
+
       try {
         await this.fetchJson('/api/vacation/request', {
           method: 'POST',
           body: JSON.stringify(this.newRequest),
         });
         this.newRequest = { start_date: '', end_date: '' };
+        this.dateRangeInfo = { days: 0, valid: false };
+        this.dateRangeError = '';
         await this.loadMyRequests();
         this.showToast('Заявка отправлена на согласование', 'success');
       } catch (err) {
         this.showToast(err.message, 'error');
+      }
+    },
+    updateDateRangeInfo() {
+      const { start_date, end_date } = this.newRequest;
+      this.dateRangeError = '';
+
+      if (!start_date || !end_date) {
+        this.dateRangeInfo = { days: 0, valid: false };
+        return;
+      }
+
+      if (end_date < start_date) {
+        this.dateRangeInfo = { days: 0, valid: false };
+        this.dateRangeError = 'Дата окончания не может быть раньше даты начала';
+        return;
+      }
+
+      const start = new Date(start_date);
+      const end = new Date(end_date);
+      const diffMs = end.getTime() - start.getTime();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const days = Math.round(diffMs / oneDayMs) + 1; // включая оба дня
+
+      // базовая проверка диапазона
+      this.dateRangeInfo = { days, valid: true };
+
+      // проверка: нельзя выбрать больше, чем доступный остаток отпусков
+      const available = this.balance || 0;
+      if (available > 0 && days > available) {
+        this.dateRangeInfo.valid = false;
+        this.dateRangeError = `Вы выбрали ${days} дн., но доступно только ${available} дн.`;
+      } else if (available === 0 && days > 0) {
+        this.dateRangeInfo.valid = false;
+        this.dateRangeError = 'У вас нет доступных дней отпуска для выбранного периода';
       }
     },
     async confirmRequest(id) {
@@ -312,6 +375,14 @@ createApp({
       } catch (err) {
         console.error(err);
         this.showToast('Не удалось отметить уведомление прочитанным', 'error');
+      }
+    },
+    async fetchVacationBalances() {
+      try {
+        const data = await this.fetchJson('/api/vacation/balances');
+        this.balances = data.balances || [];
+      } catch (err) {
+        console.error('Failed to load balances', err);
       }
     },
 
@@ -430,6 +501,14 @@ createApp({
         this.sortHrField = field;
         this.sortHrDirection = 'asc';
       }
+    },
+  },
+  watch: {
+    'newRequest.start_date'() {
+      this.updateDateRangeInfo();
+    },
+    'newRequest.end_date'() {
+      this.updateDateRangeInfo();
     },
   },
   async mounted() {
