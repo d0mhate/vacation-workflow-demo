@@ -494,9 +494,41 @@
 
             <ul v-else>
               <li v-for="n in notifications" :key="n.id">
-                <span class="tag-unread" v-if="!n.is_read">Непрочитано</span>
-                {{ n.message }} ({{ new Date(n.created_at).toLocaleString() }})
-                <button v-if="!n.is_read" class="secondary" @click="markNotificationRead(n.id)">Отметить прочитанным</button>
+                <div>
+                  <span class="tag-unread" v-if="!n.is_read">Непрочитано</span>
+
+                  <!-- Человекочитаемый тип уведомления -->
+                  <span v-if="n.type === 'vacation_reminder_14d'">
+                    [Напоминание: до начала отпуска 14 дней]
+                  </span>
+                  <span v-else-if="n.type === 'vacation_start_today'">
+                    [Сегодня начинается отпуск]
+                  </span>
+                  <span v-else-if="n.type === 'request_submitted'">
+                    [Новая заявка на отпуск]
+                  </span>
+                  <span v-else-if="n.type === 'request_approved'">
+                    [Заявка согласована]
+                  </span>
+                  <span v-else-if="n.type === 'request_rejected'">
+                    [Заявка отклонена]
+                  </span>
+                  <span v-else-if="n.type === 'request_confirmed'">
+                    [Сотрудник ознакомился с решением]
+                  </span>
+                </div>
+
+                <div class="notification-message">
+                  {{ n.message }}
+                </div>
+
+                <div class="muted" style="font-size: 12px; margin: 4px 0 6px;">
+                  {{ new Date(n.created_at).toLocaleString() }}
+                </div>
+
+                <button v-if="!n.is_read" class="secondary" @click="markNotificationRead(n.id)">
+                  Отметить прочитанным
+                </button>
               </li>
             </ul>
           </transition>

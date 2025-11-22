@@ -376,12 +376,80 @@ def _serialize_notification(notification: Notification):
 
 
 def _build_notification_message(notification: Notification):
-    if notification.type == Notification.Type.REQUEST_APPROVED and notification.request:
-        return f"Ваша заявка на отпуск №{notification.request.id} была согласована."
-    if notification.type == Notification.Type.REQUEST_REJECTED and notification.request:
-        return f"Ваша заявка на отпуск №{notification.request.id} была отклонена."
-    if notification.type == Notification.Type.REQUEST_CREATED and notification.request:
-        return f"Создана новая заявка на отпуск №{notification.request.id}."
+    req = notification.request
+
+    # Пользователь, который видит уведомление (получатель)
+    viewer = notification.user
+
+    # Будем показывать имя сотрудника только, если уведомление читает не он сам
+    employee_label = ""
+    is_self = False
+
+    if req and req.user:
+        u = req.user
+        full_name = (f"{u.first_name} {u.last_name}".strip() or u.username).strip()
+        is_self = (viewer.id == u.id)
+
+        if not is_self:
+            employee_label = f" сотрудника {full_name} (логин: {u.username})"
+
+    # Далее тексты зависят и от типа уведомления, и от того, кто его читает
+
+    if notification.type == Notification.Type.REQUEST_APPROVED and req:
+        if is_self:
+            return (
+                f"Ваша заявка №{req.id} на отпуск "
+                f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — согласована менеджером."
+            )
+        return (
+            f"Заявка №{req.id}{employee_label} на отпуск "
+            f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — согласована менеджером."
+        )
+
+    if notification.type == Notification.Type.REQUEST_REJECTED and req:
+        if is_self:
+            return (
+                f"Ваша заявка №{req.id} на отпуск "
+                f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — отклонена менеджером."
+            )
+        return (
+            f"Заявка №{req.id}{employee_label} на отпуск "
+            f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — отклонена менеджером."
+        )
+
+    if notification.type == Notification.Type.REQUEST_CREATED and req:
+        if is_self:
+            return (
+                f"Вы создали заявку №{req.id} на отпуск "
+                f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+            )
+        return (
+            f"Создана новая заявка №{req.id}{employee_label} на отпуск "
+            f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+        )
+
+    if notification.type == "vacation_reminder_14d" and req:
+        if is_self:
+            return (
+                f"До начала вашего отпуска №{req.id} осталось 14 дней "
+                f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+            )
+        return (
+            f"До начала отпуска №{req.id}{employee_label} осталось 14 дней "
+            f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+        )
+
+    if notification.type == "vacation_start_today" and req:
+        if is_self:
+            return (
+                f"Сегодня начинается ваш отпуск №{req.id} "
+                f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+            )
+        return (
+            f"Сегодня начинается отпуск №{req.id}{employee_label} "
+            f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+        )
+
     return "Уведомление"
 
 

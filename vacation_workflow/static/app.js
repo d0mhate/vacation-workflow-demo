@@ -397,12 +397,37 @@ createApp({
         // artificial delay to simulate slow backend for local testing
         await new Promise(resolve => setTimeout(resolve, 1000));
         const data = await this.fetchJson('/api/notifications');
-        this.notifications = data.notifications;
+        const raw = data.notifications || [];
+        this.notifications = raw.map(n => ({
+          ...n,
+          display_text: this.formatNotificationText(n),
+        }));
         this.loadingNotifications = false;
       } catch (err) {
         console.error(err);
         this.loadingNotifications = false;
       }
+    },
+    formatNotificationText(notification) {
+      if (!notification) return '';
+
+      // если на бэкенде уже пришло человеко‑читаемое сообщение
+      if (notification.message) {
+        return notification.message;
+      }
+
+      const created = notification.created_at || '';
+      const type = notification.type || '';
+
+      if (type === 'vacation_reminder_14d') {
+        return `Через 14 дней начинается отпуск по одной из ваших заявок (создано: ${created})`;
+      }
+      if (type === 'vacation_start_today') {
+        return `Сегодня начинается отпуск по одной из ваших заявок (создано: ${created})`;
+      }
+
+      // дефолтный вариант, если тип не распознан
+      return `Уведомление (${created})`;
     },
     async refreshNotifications() {
       if (!this.user) return;
