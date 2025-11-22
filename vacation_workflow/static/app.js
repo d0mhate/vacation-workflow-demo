@@ -37,6 +37,10 @@ createApp({
       showProfileModal: false,
       balanceAutoRefreshId: null,
       profileForm: { first_name: '', last_name: '' },
+      // --- ДЛЯ ГРАФИКА ---
+      hrSchedule: [],
+      hrScheduleYear: new Date().getFullYear(),
+      loadingHrSchedule: false,
     };
   },
   methods: {
@@ -189,6 +193,7 @@ createApp({
         await Promise.all([
           this.loadHrRequests(),
           this.fetchVacationBalances(),
+          this.loadHrSchedule(),          
         ]);
         this.loadingHrData = false;
       }
@@ -425,7 +430,37 @@ createApp({
         console.error('Failed to load balances', err);
       }
     },
+    setHrScheduleYear(year) {
+      this.hrScheduleYear = year;
+      // перезагружаем график для нового года
+      this.loadHrSchedule();
+    },
+    async loadHrSchedule() {
+      if (!this.user || this.user.role !== 'hr') return;
+      this.loadingHrSchedule = true;
+      try {
+        const data = await this.fetchJson(`/api/hr/schedule?year=${this.hrScheduleYear}`);
+        this.hrSchedule = data.entries || [];
+      } catch (err) {
+        console.error('Failed to load HR schedule', err);
+      } finally {
+        this.loadingHrSchedule = false;
+      }
+    },
+    getDaysBetween(start, end) {
+      if (!start || !end) return '';
+      const startDate = new Date(start);
+      const endDate = new Date(end);
 
+      // если вдруг дата не распарсилась
+      if (isNaN(startDate) || isNaN(endDate)) return '';
+
+      const diffMs = endDate.getTime() - startDate.getTime();
+      // +1 чтобы считать оба дня включительно
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+
+      return days;
+    },
   sortedMyRequests() {
     const list = [...this.myRequests];
     if (!this.sortMyField) {

@@ -132,7 +132,7 @@
                       Заявка №{{ req.id }}
                     </div>
                     <div class="request-card-period">
-                      Период: {{ req.start_date }} — {{ req.end_date }}
+                      Период: {{ req.start_date }} — {{ req.end_date }} ( {{ getDaysBetween(req.start_date, req.end_date) }} .дн )
                     </div>
                     <div>
                       Статус:
@@ -388,7 +388,7 @@
         </section>
 
         <section v-if="user.role === 'manager' || user.role === 'hr'" class="card">
-          <h4>Сводка остатков отпусков</h4>
+          <h2 class="card-title">Таблицы отпусков на год</h2>
           <div v-if="balances && balances.length">
             <table class="simple-table">
               <thead>
@@ -415,6 +415,64 @@
           <div v-else class="muted" style="margin-top: 4px;">Нет данных по остаткам отпусков.</div>
         </section>
 
+        <section v-if="user.role === 'hr'" class="card">
+          <div class="card-header-row">
+            <h2 class="card-title">График отпусков на год</h2>
+            <div class="year-switcher">
+              <button class="btn-secondary-small"
+                      @click="setHrScheduleYear(hrScheduleYear - 1)">
+                ← {{ hrScheduleYear - 1 }}
+              </button>
+              <span class="year-label">{{ hrScheduleYear }}</span>
+              <button class="btn-secondary-small"
+                      @click="setHrScheduleYear(hrScheduleYear + 1)">
+                {{ hrScheduleYear + 1 }} →
+              </button>
+            </div>
+          </div>
+
+          <!-- Скелет, пока грузится -->
+          <div v-if="loadingHrSchedule" class="table-skeleton">
+            Загрузка графика отпусков...
+          </div>
+
+          <!-- Таблица графика -->
+          <table v-else class="table">
+            <thead>
+              <tr>
+                <th>Сотрудник</th>
+                <th>Периоды отпусков (утвержденные)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="hrSchedule.length === 0">
+                <td colspan="2" class="muted">
+                  На {{ hrScheduleYear }} год согласованных отпусков пока нет
+                </td>
+              </tr>
+              <tr v-for="row in hrSchedule" :key="row.user_id">
+                <td>
+                  <div class="user-cell">
+                    <div class="user-name">{{ row.full_name }}</div>
+                    <div class="user-login muted">{{ row.username }}</div>
+                  </div>
+                </td>
+                <td>
+                  <div class="period-chips">
+                    <span v-for="p in row.periods"
+                          :key="p.id"
+                          class="chip chip-period">
+                      {{ p.start_date }} — {{ p.end_date }} ( {{ getDaysBetween(p.start_date, p.end_date) }} дн. )
+                      <span v-if="!p.confirmed_by_employee" class="chip-sub">
+                        (без подтверждения сотрудника)
+                      </span>
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
         <section class="card">
           <div class="card-header">
             <div>

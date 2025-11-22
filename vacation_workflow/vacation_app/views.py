@@ -1,5 +1,6 @@
 import csv
 import json
+import datetime
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,8 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import User, VacationRequest, Notification, VacationBalance
 from datetime import date, datetime
 from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
 
 from .models import (
     Notification,
@@ -236,6 +239,52 @@ def hr_export(request):
         ])
     return response
 
+@login_required
+@require_GET
+def hr_schedule(request):
+    # Только HR имеет доступ
+    if getattr(request.user, "role", None) != "hr":
+        return JsonResponse({"error": "Forbidden"}, status=403)
+
+    # Год берём из query-параметра ?year=2025, если нет — текущий
+    try:
+        year = int(request.GET.get("year") or datetime.date.today().year)
+    except ValueError:
+        year = datetime.date.today().year
+
+    qs = (
+        VacationRequest.objects
+        .filter(
+            start_date__year=year,
+            status="approved",              # только согласованные
+        )
+        .select_related("user")
+        .order_by("user__last_name", "user__first_name", "start_date")
+    )
+
+    schedule = {}
+    for req in qs:
+        u = req.user
+        key = u.id
+        if key not in schedule:
+            full_name = (f"{u.first_name} {u.last_name}".strip() or u.username).strip()
+            schedule[key] = {
+                "user_id": u.id,
+                "username": u.username,
+                "full_name": full_name,
+                "periods": [],
+            }
+        schedule[key]["periods"].append({
+            "id": req.id,
+            "start_date": req.start_date.isoformat(),
+            "end_date": req.end_date.isoformat(),
+            "confirmed_by_employee": req.confirmed_by_employee,
+        })
+
+    return JsonResponse({
+        "year": year,
+        "entries": list(schedule.values()),
+    })
 
 @login_required
 @require_GET
