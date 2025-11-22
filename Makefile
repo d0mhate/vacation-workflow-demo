@@ -2,7 +2,7 @@ PYTHON ?= python
 MANAGE := vacation_workflow/manage.py
 URL := localhost:8000
 
-.PHONY: help install migrate superuser demo-users run setup start db stop logs
+.PHONY: help install migrate superuser demo-users run setup start db stop logs notifications reset-db flush reset-demo 
 
 help:
 	@echo "Available targets:"
@@ -14,6 +14,7 @@ help:
 	@echo "  setup      - install dependencies and run migrations"
 	@echo "  start      - setup and start the development server"
 	@echo "  db      	- connect to sqlite db"
+	@echo "  notifications - generate vacation reminder notifications (management command)"
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -40,3 +41,22 @@ db:
 setup: install migrate demo-users
 
 start: setup run
+
+notifications:
+	$(PYTHON) $(MANAGE) generate_vacation_notifications
+
+reset-db:
+	rm -f vacation_workflow/db.sqlite3
+	find vacation_workflow/vacation_app/migrations -type f ! -name "__init__.py" -delete
+	$(PYTHON) $(MANAGE) makemigrations
+	$(PYTHON) $(MANAGE) migrate
+
+flush:
+	$(PYTHON) $(MANAGE) flush --noinput
+
+reset-demo:
+	rm -f vacation_workflow/db.sqlite3
+	find vacation_workflow/vacation_app/migrations -type f ! -name "__init__.py" -delete
+	$(PYTHON) $(MANAGE) makemigrations
+	$(PYTHON) $(MANAGE) migrate
+	$(PYTHON) $(MANAGE) seed_demo_users

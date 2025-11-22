@@ -1,7 +1,9 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from vacation_app.models import User, VacationBalance
+from datetime import date, timedelta
+
+from vacation_app.models import User, VacationBalance, VacationRequest
 
 import random
 
@@ -87,6 +89,68 @@ class Command(BaseCommand):
                     defaults={"days_remaining": days_2026},
                 )
 
+            # Demo vacation requests for notifications и разных статусов
+            today = date.today()
+
+            # 1) Заявка: отпуск через 14 дней (полностью согласована и подтверждена)
+            start_in_14 = today + timedelta(days=14)
+            end_in_14 = start_in_14 + timedelta(days=4)  # 5 календарных дней
+            VacationRequest.objects.update_or_create(
+                user=employee,
+                start_date=start_in_14,
+                end_date=end_in_14,
+                defaults={
+                    "status": VacationRequest.Status.APPROVED,
+                    "confirmed_by_employee": True,
+                },
+            )
+
+            # 2) Заявка: отпуск, который начинается сегодня (тоже согласован и подтверждён)
+            start_today = today
+            end_today = start_today + timedelta(days=6)  # 7 календарных дней
+            VacationRequest.objects.update_or_create(
+                user=employee,
+                start_date=start_today,
+                end_date=end_today,
+                defaults={
+                    "status": VacationRequest.Status.APPROVED,
+                    "confirmed_by_employee": True,
+                },
+            )
+
+            # 3) Заявка в статусе "на согласовании" (manager ещё не утвердил)
+            pending_start = today + timedelta(days=30)
+            pending_end = pending_start + timedelta(days=9)  # 10 календарных дней
+            VacationRequest.objects.update_or_create(
+                user=employee,
+                start_date=pending_start,
+                end_date=pending_end,
+                defaults={
+                    "status": VacationRequest.Status.PENDING,
+                    "confirmed_by_employee": True,
+                },
+            )
+
+            # 4) Отклонённая заявка в прошлом
+            rejected_start = today - timedelta(days=30)
+            rejected_end = rejected_start + timedelta(days=4)  # 5 календарных дней
+            VacationRequest.objects.update_or_create(
+                user=employee,
+                start_date=rejected_start,
+                end_date=rejected_end,
+                defaults={
+                    "status": VacationRequest.Status.REJECTED,
+                    "confirmed_by_employee": True,
+                },
+            )
+
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "Demo vacation requests created for employee: "
+                    "approved (14 дней до начала), approved (начинается сегодня), "
+                    "pending и rejected."
+                )
+            )
             self.stdout.write("")
             self.stdout.write(self.style.MIGRATE_HEADING("Demo users created or updated"))
             self.stdout.write(self.style.SUCCESS("You can log in with these accounts:"))
