@@ -159,8 +159,58 @@
                         {{ req.confirmed_by_employee ? 'Ознакомлен' : 'Не ознакомлен' }}
                       </span>
                     </div>
-                    <div class="request-card-footer" v-if="!req.confirmed_by_employee">
-                      <button @click="confirmRequest(req.id)">Подтвердить ознакомление</button>
+                    <div class="request-card-footer">
+                      <button
+                        v-if="!req.confirmed_by_employee"
+                        @click="confirmRequest(req.id)"
+                      >
+                        Подтвердить ознакомление
+                      </button>
+                      <button
+                        v-if="req.status === 'pending'"
+                        type="button"
+                        class="secondary"
+                        @click="startEditRequest(req)"
+                      >
+                        Изменить период
+                      </button>
+                    </div>
+                    <div v-if="editingRequestId === req.id" class="edit-request-inline">
+                      <div class="muted" style="font-size:13px; margin-top:4px; margin-bottom:4px;">
+                        Редактирование периода:
+                      </div>
+
+                      <div class="range-form-row" style="margin-bottom:6px;">
+                        <label>
+                          Начало:
+                          <input
+                            type="date"
+                            v-model="editRequestForm.start_date"
+                            required
+                          >
+                        </label>
+                        <label>
+                          Конец:
+                          <input
+                            type="date"
+                            v-model="editRequestForm.end_date"
+                            required
+                          >
+                        </label>
+                      </div>
+
+                      <div class="muted" style="font-size:12px; margin-bottom:8px;">
+                        Выбранный диапазон: {{ getDaysBetween(editRequestForm.start_date, editRequestForm.end_date) }} дней
+                      </div>
+
+                      <div class="request-card-footer" style="margin-top:4px;">
+                        <button type="button" @click="saveEditedRequest(req.id)">
+                          Сохранить
+                        </button>
+                        <button type="button" class="secondary" @click="cancelEditRequest">
+                          Отмена
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

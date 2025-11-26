@@ -37,6 +37,7 @@ createApp({
       showProfileModal: false,
       balanceAutoRefreshId: null,
       profileForm: { first_name: '', last_name: '' },
+      editingRequestId: null,
       // --- ДЛЯ ГРАФИКА ---
       hrSchedule: [],
       hrScheduleYear: new Date().getFullYear(),
@@ -245,7 +246,21 @@ createApp({
         this.loadingEmployeeData = false;
       }
     },
+    startEditRequest(request) {
+      if (!request) return;
+      // Разрешаем редактировать только заявки в статусе "pending" (на согласовании)
+      if (request.status !== 'pending') {
+        this.showToast('Изменять можно только заявки, которые ещё на согласовании', 'error');
+        return;
+      }
+      this.editingRequestId = request.id;
+      this.newRequest.start_date = request.start_date;
+      this.newRequest.end_date = request.end_date;
+      this.updateDateRangeInfo();
+      this.showToast('Диапазон скопирован в форму. Измените даты и нажмите кнопку отправки.', 'info');
+    },
     async createRequest() {
+      // Общая валидация диапазона дат
       this.updateDateRangeInfo();
 
       if (!this.newRequest.start_date || !this.newRequest.end_date) {
@@ -258,16 +273,30 @@ createApp({
         return;
       }
 
+      const isEdit = !!this.editingRequestId;
+      const url = isEdit
+        ? `/api/vacation/request/${this.editingRequestId}/reschedule`
+        : '/api/vacation/request';
+
       try {
-        await this.fetchJson('/api/vacation/request', {
+        await this.fetchJson(url, {
           method: 'POST',
           body: JSON.stringify(this.newRequest),
         });
+
+        // Сбрасываем форму и состояние редактирования
         this.newRequest = { start_date: '', end_date: '' };
         this.dateRangeInfo = { days: 0, valid: false };
         this.dateRangeError = '';
-        await this.loadMyRequests();
-        this.showToast('Заявка отправлена на согласование', 'success');
+        this.editingRequestId = null;
+
+        // Обновляем список заявок (и, на всякий случай, остатки)
+        await Promise.all([
+          this.loadMyRequests(),
+          this.fetchVacationBalances(),
+        ]);
+
+        this.showToast(isEdit ? 'Заявка обновлена' : 'Заявка отправлена на согласование', 'success');
       } catch (err) {
         this.showToast(err.message, 'error');
       }

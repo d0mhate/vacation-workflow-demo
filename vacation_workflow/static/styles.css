@@ -400,8 +400,8 @@ li {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .request-card--not-approved {
-  background: #fef2f2; /* very light red */
-  border-color: #fecaca;
+  /* background: #fef2f2; */
+  border-color: #ff9b9b;
 }
 
 .request-card:hover {

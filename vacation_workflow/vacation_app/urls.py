@@ -9,6 +9,7 @@ urlpatterns = [
     path('vacation/balance', views.vacation_balance, name='vacation_balance'),
     path('vacation/requests/my', views.my_requests, name='my_requests'),
     path('vacation/request', views.create_request, name='create_request'),
+    path('vacation/request/<int:pk>/update', views.update_request, name='update_request'),
     path('vacation/request/<int:pk>/confirm', views.confirm_request, name='confirm_request'),
     path('vacation/balances', views.vacation_balances, name='vacation_balances'),
     path('manager/requests', views.manager_requests, name='manager_requests'),

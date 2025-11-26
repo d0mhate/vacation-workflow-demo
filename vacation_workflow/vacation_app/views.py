@@ -1,16 +1,13 @@
 import csv
 import json
-import datetime
 
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.middleware import csrf
-from django.views.decorators.http import require_GET, require_POST
 from .models import User, VacationRequest, Notification, VacationBalance
 from datetime import date, datetime
 from django.http import JsonResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.contrib.auth.decorators import login_required
 
 from .models import (
@@ -97,22 +94,33 @@ def my_requests(request):
 
 @login_required
 @require_POST
-def create_request(request):
+def update_request(request, pk):
+    """Редактирование своей заявки на отпуск, пока она в статусе PENDING."""
     if request.user.role != ROLE_EMPLOYEE:
         return HttpResponseForbidden()
 
-    data = _get_request_data(request)
+    # Ищем заявку только текущего пользователя
+    try:
+        vacation_request = VacationRequest.objects.get(pk=pk, user=request.user)
+    except VacationRequest.DoesNotExist:
+        return _json_error('Заявка не найдена', status=404)
 
+    # Разрешаем редактировать только заявки в статусе PENDING
+    if vacation_request.status != VacationRequest.Status.PENDING:
+        return _json_error('Редактировать можно только заявки в статусе "На согласовании"', status=400)
+
+    data = _get_request_data(request)
     start_date_str = data.get('start_date')
     end_date_str = data.get('end_date')
+
     if not start_date_str or not end_date_str:
-        return _json_error('start_date and end_date are required')
+        return _json_error('start_date и end_date обязательны для редактирования')
 
     try:
         start_date = date.fromisoformat(start_date_str)
         end_date = date.fromisoformat(end_date_str)
     except ValueError:
-        return _json_error('Invalid date format. Expected YYYY-MM-DD')
+        return _json_error('Неверный формат даты. Ожидается YYYY-MM-DD')
 
     # базовая проверка диапазона
     if end_date < start_date:
@@ -137,14 +145,12 @@ def create_request(request):
             status=400,
         )
 
-    vacation_request = VacationRequest.objects.create(
-        user=request.user,
-        start_date=start_date,
-        end_date=end_date,
-        status=VacationRequest.Status.PENDING,
-        confirmed_by_employee=False,
-    )
-    return JsonResponse({'request': _serialize_request(vacation_request)}, status=201)
+    # Обновляем заявку
+    vacation_request.start_date = start_date
+    vacation_request.end_date = end_date
+    vacation_request.save(update_fields=['start_date', 'end_date'])
+
+    return JsonResponse({'request': _serialize_request(vacation_request)})
 
 
 @login_required
@@ -248,9 +254,9 @@ def hr_schedule(request):
 
     # Год берём из query-параметра ?year=2025, если нет — текущий
     try:
-        year = int(request.GET.get("year") or datetime.date.today().year)
+        year = int(request.GET.get("year") or date.today().year)
     except ValueError:
-        year = datetime.date.today().year
+        year = date.today().year
 
     qs = (
         VacationRequest.objects
@@ -274,11 +280,13 @@ def hr_schedule(request):
                 "full_name": full_name,
                 "periods": [],
             }
+        days = (req.end_date - req.start_date).days + 1
         schedule[key]["periods"].append({
             "id": req.id,
             "start_date": req.start_date.isoformat(),
             "end_date": req.end_date.isoformat(),
             "confirmed_by_employee": req.confirmed_by_employee,
+            "days": days,
         })
 
     return JsonResponse({
@@ -497,3 +505,84 @@ def vacation_balances(request):
 
     data = [_serialize_balance(b) for b in qs]
     return JsonResponse({'balances': data})
+
+@login_required
+@require_http_methods(["POST"])
+def create_request(request):
+    """
+    Создание новой заявки на отпуск сотрудником.
+    Проверяем:
+    - корректность дат
+    - что конец не раньше начала
+    - что запрошено не больше доступного остатка по году начала отпуска
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Некорректный JSON"}, status=400)
+
+    start_str = payload.get("start_date")
+    end_str = payload.get("end_date")
+
+    if not start_str or not end_str:
+        return JsonResponse(
+            {"error": "Нужно указать даты начала и конца отпуска"},
+            status=400,
+        )
+
+    try:
+        start_date = date.fromisoformat(start_str)
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return JsonResponse(
+            {"error": "Неверный формат дат (ожидается ГГГГ-ММ-ДД)"},
+            status=400,
+        )
+
+    if end_date < start_date:
+        return JsonResponse(
+            {"error": "Дата окончания не может быть раньше даты начала"},
+            status=400,
+        )
+
+    days_requested = (end_date - start_date).days + 1
+
+    # Берём остаток по году начала отпуска
+    year = start_date.year
+    balance, _ = VacationBalance.objects.get_or_create(
+        user=request.user,
+        year=year,
+        defaults={"days_remaining": 0},
+    )
+
+    initial_days = balance.days_remaining
+    planned_days = _calculate_planned_days(request.user, year)
+    available = max(initial_days - planned_days, 0)
+
+    if days_requested > available:
+        return JsonResponse(
+            {
+                "error": f"У вас нет доступных дней отпуска для выбранного периода на {year} год.",
+                "days_requested": days_requested,
+                "available_days": available,
+            },
+            status=400,
+        )
+
+    req = VacationRequest.objects.create(
+        user=request.user,
+        start_date=start_date,
+        end_date=end_date,
+        status="pending",
+        confirmed_by_employee=False,
+    )
+
+    data = {
+        "id": req.id,
+        "start_date": str(req.start_date),
+        "end_date": str(req.end_date),
+        "status": req.status,
+        "confirmed_by_employee": req.confirmed_by_employee,
+    }
+
+    return JsonResponse(data, status=201)
