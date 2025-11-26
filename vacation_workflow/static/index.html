@@ -618,6 +618,9 @@
                   <span v-else-if="n.type === 'request_rejected'">
                     [Заявка отклонена]
                   </span>
+                  <span v-else-if="n.type === 'request_rescheduled'">
+                    [Изменён период заявки]
+                  </span>
                   <span v-else-if="n.type === 'request_confirmed'">
                     [Сотрудник ознакомился с решением]
                   </span>

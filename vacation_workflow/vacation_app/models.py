@@ -53,6 +53,7 @@ class Notification(models.Model):
         REQUEST_REJECTED = 'request_rejected', 'Request Rejected'
         REQUEST_CREATED = 'request_created', 'Request Created'
         REMINDER_UPCOMING = 'reminder_upcoming', 'Upcoming Vacation Reminder'
+        REQUEST_RESCHEDULED = 'request_rescheduled', 'Request Rescheduled'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     type = models.CharField(

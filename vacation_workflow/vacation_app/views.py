@@ -99,6 +99,8 @@ def update_request(request, pk):
     if request.user.role != ROLE_EMPLOYEE:
         return HttpResponseForbidden()
 
+    manager = getattr(request.user, "manager", None)
+
     # Ищем заявку только текущего пользователя
     try:
         vacation_request = VacationRequest.objects.get(pk=pk, user=request.user)
@@ -149,6 +151,14 @@ def update_request(request, pk):
     vacation_request.start_date = start_date
     vacation_request.end_date = end_date
     vacation_request.save(update_fields=['start_date', 'end_date'])
+
+    # Уведомляем менеджера, если есть
+    if manager:
+        _create_notification(
+            user=manager,
+            type=Notification.Type.REQUEST_RESCHEDULED,
+            request=vacation_request,
+        )
 
     return JsonResponse({'request': _serialize_request(vacation_request)})
 
@@ -399,7 +409,7 @@ def _build_notification_message(notification: Notification):
         is_self = (viewer.id == u.id)
 
         if not is_self:
-            employee_label = f" сотрудника {full_name} (логин: {u.username})"
+            employee_label = f" сотрудника {full_name}"
 
     # Далее тексты зависят и от типа уведомления, и от того, кто его читает
 
@@ -434,6 +444,17 @@ def _build_notification_message(notification: Notification):
         return (
             f"Создана новая заявка №{req.id}{employee_label} на отпуск "
             f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+        )
+
+    if notification.type == Notification.Type.REQUEST_RESCHEDULED and req:
+        if is_self:
+            return (
+                f"Вы изменили период заявки №{req.id} на отпуск. "
+                f"Новый период: {req.start_date.isoformat()} — {req.end_date.isoformat()}."
+            )
+        return (
+            f"Сотрудник{employee_label} изменил период заявки №{req.id} на отпуск. "
+            f"Новый период: {req.start_date.isoformat()} — {req.end_date.isoformat()}."
         )
 
     if notification.type == "vacation_reminder_14d" and req:
