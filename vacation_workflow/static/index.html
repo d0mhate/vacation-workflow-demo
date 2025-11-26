@@ -347,6 +347,24 @@
           <p class="muted" style="margin-bottom: 8px;">
             По строкам сотрудники, по столбцам месяцы {{ hrScheduleYear }} года. Точка в ячейке означает, что в этот месяц у сотрудника есть утверждённый отпуск.
           </p>
+          <div class="filters-row" style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-bottom: 10px;">
+            <label style="display:flex; flex-direction:column; font-size:13px;">
+              Год
+              <input type="number" v-model.number="hrScheduleYear" @change="loadHrSchedule" min="2000" max="2100" style="max-width:120px;">
+            </label>
+            <label style="display:flex; flex-direction:column; font-size:13px; min-width:200px;">
+              Подразделение (менеджер)
+              <select v-model="hrSelectedManagerId" @change="loadHrSchedule">
+                <option value="">Все подразделения</option>
+                <option v-for="m in hrDepartments" :key="m.id" :value="m.id">
+                  {{ m.full_name || m.username }} ({{ m.username }})
+                </option>
+              </select>
+            </label>
+            <button type="button" class="secondary" @click="loadHrSchedule">Применить</button>
+            <button type="button" class="secondary" @click="exportHrScheduleCsv">Экспорт графика (CSV)</button>
+            <button type="button" class="secondary" @click="openHrPrintView">Печатная версия</button>
+          </div>
 
           <div v-if="loadingHrSchedule" class="table-skeleton">
             Загрузка календарного графика...

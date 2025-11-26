@@ -42,6 +42,8 @@ createApp({
       // --- ДЛЯ ГРАФИКА ---
       hrSchedule: [],
       hrScheduleYear: new Date().getFullYear(),
+      hrSelectedManagerId: '',
+      hrDepartments: [],
       loadingHrSchedule: false,
       hrCalendarMonths: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
     };
@@ -189,6 +191,7 @@ createApp({
           this.loadHrRequests(),
           this.fetchVacationBalances(),
           this.loadHrSchedule(),
+          this.loadHrDepartments(),
         ]);
         this.loadingHrData = false;
       }
@@ -497,17 +500,65 @@ createApp({
       this.hrScheduleYear = year;
       this.loadHrSchedule();
     },
+    async loadHrDepartments() {
+      if (!this.user || this.user.role !== 'hr') return;
+      try {
+        const data = await this.fetchJson('/api/hr/departments');
+        this.hrDepartments = data.departments || [];
+      } catch (err) {
+        console.error('Failed to load departments', err);
+      }
+    },
     async loadHrSchedule() {
       if (!this.user || this.user.role !== 'hr') return;
       this.loadingHrSchedule = true;
       try {
-        const data = await this.fetchJson(`/api/hr/schedule?year=${this.hrScheduleYear}`);
+        let url = `/api/hr/schedule?year=${this.hrScheduleYear}`;
+        if (this.hrSelectedManagerId) {
+          url += `&manager_id=${encodeURIComponent(this.hrSelectedManagerId)}`;
+        }
+        const data = await this.fetchJson(url);
         this.hrSchedule = data.entries || [];
       } catch (err) {
         console.error('Failed to load HR schedule', err);
       } finally {
         this.loadingHrSchedule = false;
       }
+    },
+    async exportHrScheduleCsv() {
+      if (!this.user || this.user.role !== 'hr') return;
+      try {
+        let url = `/api/hr/schedule/export?year=${this.hrScheduleYear}`;
+        if (this.hrSelectedManagerId) {
+          url += `&manager_id=${encodeURIComponent(this.hrSelectedManagerId)}`;
+        }
+        const response = await fetch(url, {
+          credentials: 'include',
+          headers: this.csrfHeader(),
+        });
+        if (!response.ok) {
+          throw new Error('Не удалось скачать график');
+        }
+        const blob = await response.blob();
+        const dlUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        const suffix = this.hrSelectedManagerId ? `_manager_${this.hrSelectedManagerId}` : '';
+        a.download = `vacation_schedule_${this.hrScheduleYear}${suffix}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(dlUrl);
+        this.showToast('CSV-файл графика скачан', 'success');
+      } catch (err) {
+        this.showToast(err.message || 'Не удалось скачать график', 'error');
+      }
+    },
+    openHrPrintView() {
+      if (!this.user || this.user.role !== 'hr') return;
+      let url = `/api/hr/schedule/print?year=${this.hrScheduleYear}`;
+      if (this.hrSelectedManagerId) {
+        url += `&manager_id=${encodeURIComponent(this.hrSelectedManagerId)}`;
+      }
+      window.open(url, '_blank');
     },
     getDaysBetween(start, end) {
       if (!start || !end) return '';

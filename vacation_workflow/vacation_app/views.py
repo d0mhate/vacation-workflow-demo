@@ -4,6 +4,7 @@ import json
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.middleware import csrf
+from django.utils.html import escape
 from .models import User, VacationRequest, Notification, VacationBalance
 from datetime import date, datetime
 from django.http import JsonResponse
@@ -268,26 +269,52 @@ def hr_schedule(request):
     except ValueError:
         year = date.today().year
 
+    manager_id_raw = request.GET.get("manager_id")
+    manager_id = None
+    if manager_id_raw:
+        try:
+            manager_id = int(manager_id_raw)
+        except ValueError:
+            manager_id = None
+
+    entries = _get_hr_schedule_entries(year=year, manager_id=manager_id)
+
+    return JsonResponse({
+        "year": year,
+        "entries": entries,
+    })
+
+
+def _get_hr_schedule_entries(year: int, manager_id: int | None = None):
     qs = (
         VacationRequest.objects
         .filter(
             start_date__year=year,
-            status="approved",              # только согласованные
+            status="approved",  # только согласованные
         )
-        .select_related("user")
+        .select_related("user", "user__manager")
         .order_by("user__last_name", "user__first_name", "start_date")
     )
+
+    if manager_id:
+        qs = qs.filter(user__manager_id=manager_id)
 
     schedule = {}
     for req in qs:
         u = req.user
         key = u.id
+        manager = getattr(u, "manager", None)
+        manager_name = ""
+        if manager:
+            manager_name = (f"{manager.first_name} {manager.last_name}".strip() or manager.username).strip()
         if key not in schedule:
             full_name = (f"{u.first_name} {u.last_name}".strip() or u.username).strip()
             schedule[key] = {
                 "user_id": u.id,
                 "username": u.username,
                 "full_name": full_name,
+                "manager_id": manager.id if manager else None,
+                "manager_name": manager_name,
                 "periods": [],
             }
         days = (req.end_date - req.start_date).days + 1
@@ -299,10 +326,153 @@ def hr_schedule(request):
             "days": days,
         })
 
-    return JsonResponse({
-        "year": year,
-        "entries": list(schedule.values()),
-    })
+    return list(schedule.values())
+
+
+@login_required
+@require_GET
+def hr_schedule_export(request):
+    if getattr(request.user, "role", None) != "hr":
+        return JsonResponse({"error": "Forbidden"}, status=403)
+
+    try:
+        year = int(request.GET.get("year") or date.today().year)
+    except ValueError:
+        year = date.today().year
+
+    manager_id_raw = request.GET.get("manager_id")
+    try:
+        manager_id = int(manager_id_raw) if manager_id_raw else None
+    except ValueError:
+        manager_id = None
+
+    entries = _get_hr_schedule_entries(year=year, manager_id=manager_id)
+
+    response = HttpResponse(content_type='text/csv')
+    filename = f"vacation_schedule_{year}.csv"
+    if manager_id:
+        filename = f"vacation_schedule_{year}_manager_{manager_id}.csv"
+    response['Content-Disposition'] = f'attachment; filename=\"{filename}\"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'Сотрудник (логин)', 'ФИО', 'Менеджер', 'Начало отпуска',
+        'Конец отпуска', 'Дней', 'Подтверждено сотрудником'
+    ])
+    for entry in entries:
+        for period in entry.get("periods", []):
+            writer.writerow([
+                entry.get("username", ""),
+                entry.get("full_name", ""),
+                entry.get("manager_name", ""),
+                period.get("start_date", ""),
+                period.get("end_date", ""),
+                period.get("days", ""),
+                "Да" if period.get("confirmed_by_employee") else "Нет",
+            ])
+    return response
+
+
+@login_required
+@require_GET
+def hr_schedule_print(request):
+    if getattr(request.user, "role", None) != "hr":
+        return JsonResponse({"error": "Forbidden"}, status=403)
+
+    try:
+        year = int(request.GET.get("year") or date.today().year)
+    except ValueError:
+        year = date.today().year
+
+    manager_id_raw = request.GET.get("manager_id")
+    try:
+        manager_id = int(manager_id_raw) if manager_id_raw else None
+    except ValueError:
+        manager_id = None
+
+    entries = _get_hr_schedule_entries(year=year, manager_id=manager_id)
+
+    rows_html = []
+    for entry in entries:
+        period_chunks = []
+        for p in entry.get("periods", []):
+            confirm_suffix = "" if p.get("confirmed_by_employee") else " <span class=\"chip-sub\">без подтверждения</span>"
+            period_chunks.append(
+                f"<div class='chip'>{escape(p['start_date'])} — {escape(p['end_date'])} ({p['days']} дн.){confirm_suffix}</div>"
+            )
+        periods_html = "".join(period_chunks) or "<div class='muted'>Нет утверждённых периодов</div>"
+        rows_html.append(
+            "<tr>"
+            f"<td><div class='user-name'>{escape(entry.get('full_name',''))}</div>"
+            f"<div class='muted'>{escape(entry.get('username',''))}</div>"
+            f"<div class='muted small'>{escape(entry.get('manager_name',''))}</div></td>"
+            f"<td>{periods_html}</td>"
+            "</tr>"
+        )
+
+    manager_label = ""
+    if manager_id:
+        manager_obj = User.objects.filter(id=manager_id, role=ROLE_MANAGER).first()
+        if manager_obj:
+            manager_label = f" • Подразделение: {(manager_obj.first_name + ' ' + manager_obj.last_name).strip() or manager_obj.username}"
+
+    html_content = f"""
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>График отпусков {year}</title>
+        <style>
+          body {{ font-family: Arial, sans-serif; margin: 24px; }}
+          h1 {{ margin-bottom: 4px; }}
+          .muted {{ color: #666; font-size: 12px; }}
+          .small {{ font-size: 11px; }}
+          table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
+          th, td {{ border: 1px solid #ddd; padding: 8px; vertical-align: top; }}
+          th {{ background: #f7f7f7; text-align: left; }}
+          .chip {{ display: inline-block; padding: 4px 8px; background: #eef6ff; border: 1px solid #d3e5ff; border-radius: 12px; margin: 2px; }}
+          .chip-sub {{ color: #a94442; font-size: 11px; }}
+          .user-name {{ font-weight: 600; }}
+          @media print {{
+            button {{ display: none; }}
+            body {{ margin: 0; padding: 0; }}
+          }}
+        </style>
+      </head>
+      <body>
+        <h1>График отпусков на {year} год</h1>
+        <div class="muted">Только согласованные заявки{escape(manager_label)}</div>
+        <table>
+          <thead>
+            <tr><th>Сотрудник</th><th>Периоды</th></tr>
+          </thead>
+          <tbody>
+            {''.join(rows_html)}
+          </tbody>
+        </table>
+        <button onclick="window.print()">Печать</button>
+      </body>
+    </html>
+    """
+    return HttpResponse(html_content)
+
+
+@login_required
+@require_GET
+def hr_departments(request):
+    if getattr(request.user, "role", None) != "hr":
+        return JsonResponse({"error": "Forbidden"}, status=403)
+    managers = User.objects.filter(role=ROLE_MANAGER).order_by("last_name", "first_name")
+    data = []
+    for m in managers:
+        full_name = (f"{m.first_name} {m.last_name}".strip() or m.username).strip()
+        data.append({
+            "id": m.id,
+            "username": m.username,
+            "full_name": full_name,
+        })
+    return JsonResponse({"departments": data})
+
 
 @login_required
 @require_GET
