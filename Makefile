@@ -1,26 +1,45 @@
 PYTHON ?= python
 MANAGE := vacation_workflow/manage.py
 URL ?= localhost:8000
+APP_URL ?= http://localhost:8000/static/index.html
 FRONTEND_DIR := frontend
 STATIC_DIST := vacation_workflow/static/dist
+IMAGE ?= d0mhate/vacation-workflow
+CONTAINER ?= vacation-workflow
 
 .PHONY: help install migrate superuser demo-users run setup start db stop logs notifications reset-db flush reset-demo 
 
 help:
 	@echo "Available targets:"
-	@echo "  install         - install Python dependencies from requirements.txt"
-	@echo "  migrate         - apply database migrations"
-	@echo "  superuser       - create a Django superuser (interactive)"
-	@echo "  demo-users      - create demo employee/manager/hr users with default passwords"
-	@echo "  run             - start the Django development server"
-	@echo "  setup           - install deps, migrate, seed demo users"
-	@echo "  start           - setup backend and start dev server"
-	@echo "  db              - connect to sqlite db"
-	@echo "  notifications   - generate vacation reminder notifications (management command)"
+	@echo "  install         - установить Python-зависимости (requirements.txt)"
+	@echo "  migrate         - применить миграции"
+	@echo "  superuser       - создать суперпользователя Django"
+	@echo "  demo-users      - создать демо-учётки (employee/manager/hr)"
+	@echo "  run             - запустить Django dev-сервер"
+	@echo "  setup           - install + migrate + demo-users"
+	@echo "  start           - setup и старт dev-сервера"
+	@echo "  db              - подключиться к sqlite (dbshell)"
+	@echo "  notifications   - сгенерировать уведомления (команда Django)"
 	@echo "  fe-install      - npm install (frontend)"
-	@echo "  fe-build        - build Vite bundle to static/dist"
-	@echo "  fe-dev          - run Vite dev server"
-	@echo "  fe-clean        - remove built dist"
+	@echo "  fe-build        - собрать Vite в static/dist"
+	@echo "  fe-dev          - запустить Vite dev server"
+	@echo "  fe-clean        - удалить dist/node_modules фронта"
+	@echo "  docker-build    - собрать Docker-образ"
+	@echo "  docker-run      - запустить контейнер (порт 8000)"
+	@echo "  docker-push     - отправить образ ($(IMAGE)) в реестр"
+	@echo "  docker-stop     - остановить контейнер"
+	@echo "  docker-logs     - логи контейнера"
+	@echo "  compose-up      - docker-compose up (build + run)"
+	@echo "  compose-down    - docker-compose down"
+	@echo "  compose-logs    - docker-compose logs -f"
+	@echo "  compose-dev-up  - compose в dev-режиме с volume (код монтируется)"
+	@echo "  compose-dev-down- остановить dev-compose"
+	@echo "  compose-dev-logs- логи dev-compose"
+	@echo "  up              - алиас compose-up с подсказками и открытием URL"
+	@echo "  pretty-up       - анимированный запуск (build + up)"
+	@echo "  down            - алиас compose-down"
+	@echo "  open-url        - открыть браузер на $(APP_URL)"
+	@echo "  demo-tips       - подсказки по демо-командам"
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -79,3 +98,63 @@ fe-dev:
 
 fe-clean:
 	rm -rf $(STATIC_DIST) $(FRONTEND_DIR)/dist $(FRONTEND_DIR)/node_modules
+
+docker-build:
+	docker build -t $(IMAGE) .
+
+docker-push:
+	docker push $(IMAGE)
+
+docker-run:
+	docker run --rm -d --name $(CONTAINER) -p 8000:8000 $(IMAGE)
+
+docker-stop:
+	-docker stop $(CONTAINER)
+
+docker-logs:
+	docker logs -f $(CONTAINER)
+
+compose-up:
+	docker-compose up --build -d
+
+compose-down:
+	docker-compose down
+
+compose-logs:
+	docker-compose logs -f
+
+compose-dev-up:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
+
+compose-dev-down:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+compose-dev-logs:
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
+
+# Aliases
+up: pretty-up demo-tips open-url
+
+down: compose-down
+
+open-url:
+	@echo "Открываю $(APP_URL)..."
+	@ (command -v xdg-open >/dev/null 2>&1 && xdg-open "$(APP_URL)") || \
+	  (command -v open >/dev/null 2>&1 && open "$(APP_URL)") || \
+	  (command -v start >/dev/null 2>&1 && start "$(APP_URL)") || \
+	  echo "Откройте вручную: $(APP_URL)"
+
+demo-tips:
+	@echo "Полезные команды для демо:"
+	@echo "  make demo-users       # создать/обновить демо-учётки (employee/manager/hr)"
+	@echo "  make notifications    # сгенерировать уведомления"
+	@echo "  make logs             # посмотреть логи Django (tail)"
+
+# Немного «анимации» в терминале
+pretty-up:
+	@printf "🚀 Старт запуска окружения\n"
+	@printf "🔧 Шаг 1/2: сборка образа...\n"
+	@docker-compose build
+	@printf "⚙️  Шаг 2/2: поднимаю сервисы...\n"
+	@docker-compose up -d
+	@printf "Готово. Откройте: $(APP_URL)\n"

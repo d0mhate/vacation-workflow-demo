@@ -6,6 +6,7 @@
 ### Быстрый старт одной командой
 - `make start` — установит зависимости, применит миграции и запустит dev-сервер на `http://localhost:8000/`.
 - `make fe-install && make fe-build` — поставить npm-зависимости фронта и собрать бандл в `static/dist` (Vue + Vite). Для разработки фронта есть `make fe-dev`.
+- Докер: `make docker-build && make docker-run` — собрать образ и запустить контейнер (порт 8000).
 
 ### Готовые демо-учётки
 - `make demo-users` создаст (или обновит) три тестовых учётки с паролем `password123`:
@@ -23,6 +24,26 @@
 4. Создайте суперпользователя: `python vacation_workflow/manage.py createsuperuser` (или `make superuser`).
 5. Запустите сервер: `python vacation_workflow/manage.py runserver localhost:8000` (или `make run`).
 6. Откройте `http://localhost:8000/static/index.html` для доступа к SPA.
+
+### Запуск в Docker
+1. Соберите образ: `make docker-build` (или `docker build -t vacation-workflow .`).
+2. Запустите контейнер: `make docker-run` (поднимется на `http://localhost:8000`).
+3. Остановить/логи: `make docker-stop`, `make docker-logs`.
+
+Готовый образ в Docker Hub: `d0mhate/vacation-workflow:latest`
+- `docker pull d0mhate/vacation-workflow:latest`
+- `docker run --rm -p 8000:8000 d0mhate/vacation-workflow:latest`
+
+### Запуск через docker-compose
+- `make compose-up` — соберёт образ и поднимет контейнер `app` на `http://localhost:8000`.
+- `make compose-logs` — смотреть логи.
+- `make compose-down` — остановить.
+
+### Режим разработки с монтированием кода (docker-compose.dev.yml)
+- `make compose-dev-up` — запустить с volume текущей директории (`.` монтируется в /app), удобно для живой правки кода.
+- `make compose-dev-logs` — смотреть логи.
+- `make compose-dev-down` — остановить.
+> Примечание: node_modules и dist внутри контейнера исключены из volume (аналогично прописано в docker-compose.dev.yml).
 
 ## Роли
 - **employee** — видит свой остаток, подаёт и подтверждает заявки.
