@@ -9,3 +9,13 @@ venv/
 db.sqlite3
 staticfiles/
 .idea
+.vscode
+
+# Node/Vite build artifacts
+/frontend/node_modules/
+/frontend/.vite/
+/vacation_workflow/static/dist/
+/frontend/dist/
+
+# OS junk
+.DS_Store

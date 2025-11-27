@@ -10,6 +10,8 @@ urlpatterns = [
     path('vacation/requests/my', views.my_requests, name='my_requests'),
     path('vacation/request', views.create_request, name='create_request'),
     path('vacation/request/<int:pk>/update', views.update_request, name='update_request'),
+    path('vacation/request/<int:pk>/delete', views.delete_request, name='delete_request'),
+    path('vacation/request/<int:pk>/duplicate', views.duplicate_request, name='duplicate_request'),
     path('vacation/request/<int:pk>/confirm', views.confirm_request, name='confirm_request'),
     path('vacation/balances', views.vacation_balances, name='vacation_balances'),
     path('manager/requests', views.manager_requests, name='manager_requests'),
@@ -25,4 +27,6 @@ urlpatterns = [
     path('notifications/<int:pk>/read', views.notification_mark_read, name='notification_mark_read'),
     path('profile/update', views.profile_update, name='profile_update'),
     path("hr/schedule", views.hr_schedule, name="hr_schedule"),
+    path("live/sse", views.live_sse, name="live_sse"),
+    path("live/changes", views.live_changes, name="live_changes"),
 ]

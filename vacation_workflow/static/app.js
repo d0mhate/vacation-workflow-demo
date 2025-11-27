@@ -35,7 +35,6 @@ createApp({
       loadingHrData: false,
       toastTimeoutId: null,
       showProfileModal: false,
-      balanceAutoRefreshId: null,
       profileForm: { first_name: '', last_name: '' },
       editingRequestId: null,
       editRequestForm: { start_date: '', end_date: '' },
@@ -46,6 +45,7 @@ createApp({
       hrDepartments: [],
       loadingHrSchedule: false,
       hrCalendarMonths: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+      liveSyncAttached: false,
     };
   },
   methods: {
@@ -97,22 +97,34 @@ createApp({
         }
       }, 2600);
     },
-    startBalanceAutoRefresh() {
-      this.stopBalanceAutoRefresh();
-      if (!this.user || this.user.role !== 'employee') {
-        return;
-      }
-      this.balanceAutoRefreshId = setInterval(() => {
-        if (this.user && this.user.role === 'employee') {
-          this.loadBalance(true);
-          this.fetchVacationBalances();
-        }
-      }, 2000);
+    setupLiveBalanceSync() {
+      if (this.liveSyncAttached || !this.user || this.user.role !== 'employee') return;
+      this.liveSyncAttached = true;
+      window.addEventListener('storage', this.handleBalanceBroadcast);
     },
-    stopBalanceAutoRefresh() {
-      if (this.balanceAutoRefreshId) {
-        clearInterval(this.balanceAutoRefreshId);
-        this.balanceAutoRefreshId = null;
+    teardownLiveBalanceSync() {
+      if (!this.liveSyncAttached) return;
+      window.removeEventListener('storage', this.handleBalanceBroadcast);
+      this.liveSyncAttached = false;
+    },
+    handleBalanceBroadcast(event) {
+      if (event.key !== 'balance_sync') return;
+      if (this.user && this.user.role === 'employee') {
+        this.refreshEmployeeData(true);
+      }
+    },
+    async refreshEmployeeData(silent = false) {
+      await Promise.all([
+        this.loadBalance(silent),
+        this.fetchVacationBalances(),
+        this.loadMyRequests(),
+      ]);
+    },
+    broadcastBalanceUpdate() {
+      try {
+        localStorage.setItem('balance_sync', JSON.stringify({ ts: Date.now() }));
+      } catch (e) {
+        // ignore storage errors (private mode, quota, etc.)
       }
     },
     scrollToNotifications() {
@@ -162,7 +174,7 @@ createApp({
         this.loadNotifications(),
       ]);
       if (this.user && this.user.role === 'employee') {
-        this.startBalanceAutoRefresh();
+        this.setupLiveBalanceSync();
       }
     },
     async loadRoleData() {
@@ -209,7 +221,7 @@ createApp({
       }
     },
     async logout() {
-      this.stopBalanceAutoRefresh();
+      this.teardownLiveBalanceSync();
       try {
         await this.fetchJson('/api/logout', { method: 'POST' });
       } catch (err) {
@@ -230,7 +242,11 @@ createApp({
       }
       try {
         const data = await this.fetchJson('/api/vacation/balance');
+        const prev = this.balance;
         this.balance = data.days_remaining;
+        if (prev !== this.balance) {
+          this.broadcastBalanceUpdate();
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -287,6 +303,7 @@ createApp({
           this.fetchVacationBalances(),
         ]);
         this.showToast('Период заявки обновлён', 'success');
+        this.broadcastBalanceUpdate();
       } catch (err) {
         this.showToast(err.message || 'Не удалось обновить заявку', 'error');
       }
@@ -328,6 +345,7 @@ createApp({
         ]);
 
         this.showToast('Заявка отправлена на согласование', 'success');
+        this.broadcastBalanceUpdate();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -373,6 +391,7 @@ createApp({
           this.fetchVacationBalances(),
         ]);
         this.showToast('Ознакомление с приказом подтверждено', 'success');
+        this.broadcastBalanceUpdate();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -726,7 +745,7 @@ createApp({
   async mounted() {
     await this.loadMe();
     if (this.user && this.user.role === 'employee') {
-      this.startBalanceAutoRefresh();
+      this.setupLiveBalanceSync();
     }
   },
 }).mount('#app');

@@ -13,6 +13,7 @@ class User(AbstractUser):
 
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.username} ({self.role})"
@@ -31,6 +32,7 @@ class VacationRequest(models.Model):
     end_date = models.DateField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     confirmed_by_employee = models.BooleanField(default=False)
 
     def __str__(self):

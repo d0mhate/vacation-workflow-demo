@@ -1,12 +1,15 @@
 import csv
 import json
+import time
 
 from django.contrib.auth import authenticate, login, logout
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, StreamingHttpResponse
 from django.middleware import csrf
 from django.utils.html import escape
 from .models import User, VacationRequest, Notification, VacationBalance
 from datetime import date, datetime
+from django.utils import timezone
+from django.db.models import Max
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.contrib.auth.decorators import login_required
@@ -476,6 +479,142 @@ def hr_departments(request):
 
 @login_required
 @require_GET
+def live_changes(request):
+    """
+    Лёгкий пинг для фронта: если зафиксированы изменения в заявках/уведомлениях
+    после переданного timestamp (ms), возвращаем changed=True и новую метку.
+    """
+    try:
+        since_ms = float(request.GET.get("since", "0"))
+    except ValueError:
+        since_ms = 0
+    since = timezone.datetime.fromtimestamp(since_ms / 1000, tz=timezone.utc) if since_ms else None
+
+    user = request.user
+    role = getattr(user, "role", None)
+
+    latest_ts = None
+
+    def bump(ts):
+        nonlocal latest_ts
+        if ts and (latest_ts is None or ts > latest_ts):
+            latest_ts = ts
+
+    # заявки
+    if role == ROLE_EMPLOYEE:
+        qs = VacationRequest.objects.filter(user=user)
+    elif role == ROLE_MANAGER:
+        qs = VacationRequest.objects.filter(user__manager=user)
+    elif role == ROLE_HR:
+        qs = VacationRequest.objects.all()
+    else:
+        qs = VacationRequest.objects.none()
+    agg = qs.aggregate(max_updated=Max("updated_at"))
+    bump(agg.get("max_updated"))
+
+    # уведомления (только для текущего пользователя)
+    notif_agg = Notification.objects.filter(user=user).aggregate(max_created=Max("created_at"))
+    bump(notif_agg.get("max_created"))
+
+    # балансы для HR/manager/employee
+    bal_qs = VacationBalance.objects.all()
+    if role == ROLE_EMPLOYEE:
+        bal_qs = bal_qs.filter(user=user)
+    elif role == ROLE_MANAGER:
+        bal_qs = bal_qs.filter(user__manager=user)
+    bal_agg = bal_qs.aggregate(max_updated=Max("id"))
+    bump(timezone.now() if bal_agg.get("max_updated") else None)
+
+    changed = False
+    if latest_ts:
+        if since is None or latest_ts > since:
+            changed = True
+
+    latest_ms = int(latest_ts.timestamp() * 1000) if latest_ts else since_ms
+    return JsonResponse({
+        "changed": changed,
+        "timestamp": latest_ms,
+    })
+
+
+def _latest_change_timestamp(user):
+    """Возвращает максимальный timestamp изменений, доступных пользователю."""
+    role = getattr(user, "role", None)
+    latest_ts = None
+
+    def bump(ts):
+        nonlocal latest_ts
+        if ts and (latest_ts is None or ts > latest_ts):
+            latest_ts = ts
+
+    if role == ROLE_EMPLOYEE:
+        req_qs = VacationRequest.objects.filter(user=user)
+    elif role == ROLE_MANAGER:
+        req_qs = VacationRequest.objects.filter(user__manager=user)
+    elif role == ROLE_HR:
+        req_qs = VacationRequest.objects.all()
+    else:
+        req_qs = VacationRequest.objects.none()
+    agg = req_qs.aggregate(max_updated=Max("updated_at"))
+    bump(agg.get("max_updated"))
+
+    notif_agg = Notification.objects.filter(user=user).aggregate(max_created=Max("created_at"))
+    bump(notif_agg.get("max_created"))
+
+    bal_qs = VacationBalance.objects.all()
+    if role == ROLE_EMPLOYEE:
+        bal_qs = bal_qs.filter(user=user)
+    elif role == ROLE_MANAGER:
+        bal_qs = bal_qs.filter(user__manager=user)
+
+    # обновления профилей (имён) — чтобы списки заявок подтягивали новые ФИО
+    if role == ROLE_EMPLOYEE:
+        user_qs = User.objects.filter(id=user.id)
+    elif role == ROLE_MANAGER:
+        user_qs = User.objects.filter(manager=user)
+    elif role == ROLE_HR:
+        user_qs = User.objects.all()
+    else:
+        user_qs = User.objects.none()
+    user_agg = user_qs.aggregate(max_updated=Max("updated_at"))
+    bump(user_agg.get("max_updated"))
+
+    return latest_ts
+
+
+@login_required
+@require_GET
+def live_sse(request):
+    """Простой SSE-стрим изменений для реактивного фронта."""
+    user = request.user
+    last_ts = _latest_change_timestamp(user) or timezone.now()
+
+    def event_stream():
+        nonlocal last_ts
+        while True:
+            try:
+                current = _latest_change_timestamp(user) or last_ts
+                if current > last_ts:
+                    last_ts = current
+                    payload = json.dumps({
+                        "type": "change",
+                        "timestamp": int(current.timestamp() * 1000),
+                    })
+                    yield f"event: change\ndata: {payload}\n\n"
+                time.sleep(2)
+            except GeneratorExit:
+                break
+            except Exception:
+                break
+
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
+    return response
+
+
+@login_required
+@require_GET
 def notifications_list(request):
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     return JsonResponse({'notifications': [_serialize_notification(n) for n in notifications]})
@@ -498,6 +637,67 @@ def notification_mark_read(request, pk):
     notification.is_read = True
     notification.save(update_fields=['is_read'])
     return JsonResponse({'notification': _serialize_notification(notification)})
+
+
+@login_required
+@require_POST
+def delete_request(request, pk):
+    """Удаление своей заявки (только сотрудник, только pending)."""
+    if request.user.role != ROLE_EMPLOYEE:
+        return HttpResponseForbidden()
+    try:
+        vacation_request = VacationRequest.objects.get(pk=pk, user=request.user)
+    except VacationRequest.DoesNotExist:
+        return _json_error('Заявка не найдена', status=404)
+    if vacation_request.status != VacationRequest.Status.PENDING:
+        return _json_error('Удалять можно только заявки в статусе "На согласовании"', status=400)
+    vacation_request.delete()
+    # обновляем updated_at у пользователя, чтобы фронт получил SSE-событие
+    request.user.updated_at = timezone.now()
+    request.user.save(update_fields=['updated_at'])
+    return JsonResponse({'deleted': True})
+
+
+@login_required
+@require_POST
+def duplicate_request(request, pk):
+    """Создание копии своей заявки (новая pending, учитываем баланс)."""
+    if request.user.role != ROLE_EMPLOYEE:
+        return HttpResponseForbidden()
+    try:
+        source = VacationRequest.objects.get(pk=pk, user=request.user)
+    except VacationRequest.DoesNotExist:
+        return _json_error('Заявка не найдена', status=404)
+
+    start_date = source.start_date
+    end_date = source.end_date
+    if end_date < start_date:
+        return _json_error('Дата окончания не может быть раньше даты начала')
+
+    days_requested = (end_date - start_date).days + 1
+    year = start_date.year
+    balance, _ = VacationBalance.objects.get_or_create(
+        user=request.user,
+        year=year,
+        defaults={"days_remaining": 0},
+    )
+    initial_days = balance.days_remaining
+    planned_days = _calculate_planned_days(request.user, year)
+    available = max(initial_days - planned_days, 0)
+    if days_requested > available:
+        return _json_error(
+            f'Недостаточно дней отпуска на {year} год. Доступно: {available}, выбрано: {days_requested}.',
+            status=400,
+        )
+
+    new_req = VacationRequest.objects.create(
+        user=request.user,
+        start_date=start_date,
+        end_date=end_date,
+        status=VacationRequest.Status.PENDING,
+        confirmed_by_employee=False,
+    )
+    return JsonResponse({'request': _serialize_request(new_req)}, status=201)
 
 
 def _serialize_user(user: User):
@@ -672,7 +872,11 @@ def profile_update(request):
     user = request.user
     user.first_name = first_name
     user.last_name = last_name
-    user.save(update_fields=['first_name', 'last_name'])
+    # обновляем updated_at, чтобы SSE увидело изменение профиля
+    user.save(update_fields=['first_name', 'last_name', 'updated_at'])
+
+    # Обновляем метку у заявок, чтобы менеджеры/HR получили событие и новые ФИО
+    VacationRequest.objects.filter(user=user).update(updated_at=timezone.now())
 
     return JsonResponse({'user': _serialize_user(user)})
 
