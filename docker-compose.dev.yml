@@ -2,6 +2,7 @@ version: "3.9"
 
 services:
   app:
+    image: d0mhate/vacation-workflow:latest
     build:
       context: .
       dockerfile: Dockerfile
