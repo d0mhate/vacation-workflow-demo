@@ -122,7 +122,7 @@
                       Заявка №{{ req.id }}
                     </div>
                     <div class="request-card-period">
-                      Период: {{ req.start_date }} — {{ req.end_date }} ({{ getDaysBetween(req.start_date, req.end_date) }} .дн)
+                      Период: {{ req.start_date }} - {{ req.end_date }} ({{ getDaysBetween(req.start_date, req.end_date) }} .дн)
                     </div>
                     <div>
                       Статус:
@@ -306,10 +306,10 @@
                     }"
                   >
                     <div class="request-card-header">
-                      Заявка №{{ req.id }} —  {{ req.user.first_name }} {{ req.user.last_name }}
+                      Заявка №{{ req.id }} -  {{ req.user.first_name }} {{ req.user.last_name }}
                     </div>
                     <div class="request-card-period">
-                      Период: {{ req.start_date }} — {{ req.end_date }}
+                      Период: {{ req.start_date }} - {{ req.end_date }}
                     </div>
                     <div>
                       Статус:
@@ -478,10 +478,10 @@
                     }"
                   >
                     <div class="request-card-header">
-                      Заявка №{{ req.id }} — {{ req.user.first_name }} {{ req.user.last_name }}
+                      Заявка №{{ req.id }} - {{ req.user.first_name }} {{ req.user.last_name }}
                     </div>
                     <div class="request-card-period">
-                      Период: {{ req.start_date }} — {{ req.end_date }}
+                      Период: {{ req.start_date }} - {{ req.end_date }}
                     </div>
                     <div>
                       Статус:
@@ -591,7 +591,7 @@
                     <span v-for="p in row.periods"
                           :key="p.id"
                           class="chip chip-period">
-                      {{ p.start_date }} — {{ p.end_date }} ( {{ getDaysBetween(p.start_date, p.end_date) }} дн. )
+                      {{ p.start_date }} - {{ p.end_date }} ( {{ getDaysBetween(p.start_date, p.end_date) }} дн. )
                       <span v-if="!p.confirmed_by_employee" class="chip-sub">
                         (без подтверждения сотрудника)
                       </span>

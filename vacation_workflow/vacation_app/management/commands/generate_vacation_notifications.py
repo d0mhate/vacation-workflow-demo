@@ -96,7 +96,7 @@ class Command(BaseCommand):
             qs = qs.filter(confirmed_by_employee=True)
 
         # Пытаемся отфильтровать "утверждённые" статусы, но мягко:
-        # если статус не совпадает ни с одним перечисленным, просто ничего страшного —
+        # если статус не совпадает ни с одним перечисленным, просто ничего страшного -
         # queryset вернёт 0 строк и команда отработает без ошибок.
         APPROVED_STATUSES = [
             "approved",
@@ -107,7 +107,7 @@ class Command(BaseCommand):
         try:
             qs = qs.filter(status__in=APPROVED_STATUSES)
         except Exception:
-            # На всякий случай — если поле status устроено иначе, не ломаем команду
+            # На всякий случай - если поле status устроено иначе, не ломаем команду
             pass
 
         return qs.select_related("user", "user__manager")

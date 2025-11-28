@@ -84,4 +84,4 @@ class VacationBalance(models.Model):
         ordering = ['-year']
 
     def __str__(self):
-        return f'{self.user.username} — {self.year}: {self.days_remaining} дн.'
+        return f'{self.user.username} - {self.year}: {self.days_remaining} дн.'

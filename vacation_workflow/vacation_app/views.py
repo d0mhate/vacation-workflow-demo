@@ -74,7 +74,7 @@ def vacation_balance(request):
     if request.user.role != ROLE_EMPLOYEE:
         return HttpResponseForbidden()
 
-    # текущий год — для карточки "Остаток отпусков"
+    # текущий год - для карточки "Остаток отпусков"
     current_year = date.today().year
 
     balance, _ = VacationBalance.objects.get_or_create(
@@ -266,7 +266,7 @@ def hr_schedule(request):
     if getattr(request.user, "role", None) != "hr":
         return JsonResponse({"error": "Forbidden"}, status=403)
 
-    # Год берём из query-параметра ?year=2025, если нет — текущий
+    # Год берём из query-параметра ?year=2025, если нет - текущий
     try:
         year = int(request.GET.get("year") or date.today().year)
     except ValueError:
@@ -401,7 +401,7 @@ def hr_schedule_print(request):
         for p in entry.get("periods", []):
             confirm_suffix = "" if p.get("confirmed_by_employee") else " <span class=\"chip-sub\">без подтверждения</span>"
             period_chunks.append(
-                f"<div class='chip'>{escape(p['start_date'])} — {escape(p['end_date'])} ({p['days']} дн.){confirm_suffix}</div>"
+                f"<div class='chip'>{escape(p['start_date'])} - {escape(p['end_date'])} ({p['days']} дн.){confirm_suffix}</div>"
             )
         periods_html = "".join(period_chunks) or "<div class='muted'>Нет утверждённых периодов</div>"
         rows_html.append(
@@ -567,7 +567,7 @@ def _latest_change_timestamp(user):
     elif role == ROLE_MANAGER:
         bal_qs = bal_qs.filter(user__manager=user)
 
-    # обновления профилей (имён) — чтобы списки заявок подтягивали новые ФИО
+    # обновления профилей (имён) - чтобы списки заявок подтягивали новые ФИО
     if role == ROLE_EMPLOYEE:
         user_qs = User.objects.filter(id=user.id)
     elif role == ROLE_MANAGER:
@@ -787,66 +787,66 @@ def _build_notification_message(notification: Notification):
         if is_self:
             return (
                 f"Ваша заявка №{req.id} на отпуск "
-                f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — согласована менеджером."
+                f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} - согласована менеджером."
             )
         return (
             f"Заявка №{req.id}{employee_label} на отпуск "
-            f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — согласована менеджером."
+            f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} - согласована менеджером."
         )
 
     if notification.type == Notification.Type.REQUEST_REJECTED and req:
         if is_self:
             return (
                 f"Ваша заявка №{req.id} на отпуск "
-                f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — отклонена менеджером."
+                f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} - отклонена менеджером."
             )
         return (
             f"Заявка №{req.id}{employee_label} на отпуск "
-            f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} — отклонена менеджером."
+            f"с {req.start_date.isoformat()} по {req.end_date.isoformat()} - отклонена менеджером."
         )
 
     if notification.type == Notification.Type.REQUEST_CREATED and req:
         if is_self:
             return (
                 f"Вы создали заявку №{req.id} на отпуск "
-                f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+                f"({req.start_date.isoformat()} - {req.end_date.isoformat()})."
             )
         return (
             f"Создана новая заявка №{req.id}{employee_label} на отпуск "
-            f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+            f"({req.start_date.isoformat()} - {req.end_date.isoformat()})."
         )
 
     if notification.type == Notification.Type.REQUEST_RESCHEDULED and req:
         if is_self:
             return (
                 f"Вы изменили период заявки №{req.id} на отпуск. "
-                f"Новый период: {req.start_date.isoformat()} — {req.end_date.isoformat()}."
+                f"Новый период: {req.start_date.isoformat()} - {req.end_date.isoformat()}."
             )
         return (
             f"Сотрудник{employee_label} изменил период заявки №{req.id} на отпуск. "
-            f"Новый период: {req.start_date.isoformat()} — {req.end_date.isoformat()}."
+            f"Новый период: {req.start_date.isoformat()} - {req.end_date.isoformat()}."
         )
 
     if notification.type == "vacation_reminder_14d" and req:
         if is_self:
             return (
                 f"До начала вашего отпуска №{req.id} осталось 14 дней "
-                f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+                f"({req.start_date.isoformat()} - {req.end_date.isoformat()})."
             )
         return (
             f"До начала отпуска №{req.id}{employee_label} осталось 14 дней "
-            f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+            f"({req.start_date.isoformat()} - {req.end_date.isoformat()})."
         )
 
     if notification.type == "vacation_start_today" and req:
         if is_self:
             return (
                 f"Сегодня начинается ваш отпуск №{req.id} "
-                f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+                f"({req.start_date.isoformat()} - {req.end_date.isoformat()})."
             )
         return (
             f"Сегодня начинается отпуск №{req.id}{employee_label} "
-            f"({req.start_date.isoformat()} — {req.end_date.isoformat()})."
+            f"({req.start_date.isoformat()} - {req.end_date.isoformat()})."
         )
 
     return "Уведомление"
@@ -890,7 +890,7 @@ def vacation_balances(request):
     if user.role == User.Roles.EMPLOYEE:
         qs = qs.filter(user=user)
     elif user.role == User.Roles.MANAGER:
-        # все сотрудники, у которых этот пользователь — менеджер
+        # все сотрудники, у которых этот пользователь - менеджер
         qs = qs.filter(user__manager=user)
     elif user.role == User.Roles.HR:
         # кадровик видит всех
