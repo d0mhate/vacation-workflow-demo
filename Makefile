@@ -28,9 +28,11 @@ help:
 	@echo "  fe-clean        - удалить dist/node_modules фронта"
 	@echo "  docker-build    - собрать Docker-образ"
 	@echo "  docker-build-dated - собрать образ с датой (TAG=$(DATE_TAG))"
+	@echo "  docker-build-all   - собрать образ и latest, и датированный тег"
 	@echo "  docker-run      - запустить контейнер (порт 8000)"
 	@echo "  docker-push     - отправить образ ($(IMAGE)) в реестр"
 	@echo "  docker-push-dated - отправить образ с датой ($(IMAGE_DATED))"
+	@echo "  docker-push-all   - отправить latest и датированный тег"
 	@echo "  docker-stop     - остановить контейнер"
 	@echo "  docker-logs     - логи контейнера"
 	@echo "  compose-up      - docker-compose up (build + run)"
@@ -110,10 +112,18 @@ docker-build-dated:
 	docker build -t $(IMAGE_DATED) .
 	@echo "Built $(IMAGE_DATED). Если нужен latest: docker tag $(IMAGE_DATED) $(IMAGE)"
 
+docker-build-all:
+	docker build -t $(IMAGE) -t $(IMAGE_DATED) .
+	@echo "Built $(IMAGE) и $(IMAGE_DATED)"
+
 docker-push:
 	docker push $(IMAGE)
 
 docker-push-dated:
+	docker push $(IMAGE_DATED)
+
+docker-push-all:
+	docker push $(IMAGE)
 	docker push $(IMAGE_DATED)
 
 docker-run:
