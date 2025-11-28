@@ -6,6 +6,22 @@
 
 Макет в Figma: [ссылка](https://www.figma.com/design/loW6sEBw6yp9UDDxJxWYQy/Vacation-Workflow?m=auto&t=AbLWBV0T9crSaMXi-1)
 
+## Репозиторий и быстрый старт
+
+- Репозиторий: https://github.com/d0mhate/vacation-workflow-demo
+- Клонирование (клик по блоку скопирует команду):
+  ```bash
+  git clone https://github.com/d0mhate/vacation-workflow-demo.git
+  ```
+- Базовые команды make:
+  ```bash
+  make up              # build+up через docker-compose и открытие UI
+  make compose-dev-up   # dev-режим с монтированием кода
+  make fe-build        # сборка фронта (Vite) в static/dist
+  make docker-build-all # собрать образы latest
+  make docker-push-all  # пуш обоих тегов
+  ```
+
 ## Запуск
 ### Быстрый старт
 - Docker (рекомендуется): `make up` - соберёт образ, поднимет контейнер через docker-compose и откроет `http://localhost:8000/static/index.html`.
