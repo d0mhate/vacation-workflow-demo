@@ -4,6 +4,8 @@
 
 Документация моделей: [docs/models.md](docs/models.md).
 
+Макет в Figma: [ссылка](https://www.figma.com/design/loW6sEBw6yp9UDDxJxWYQy/Vacation-Workflow?m=auto&t=AbLWBV0T9crSaMXi-1)
+
 ## Запуск
 ### Быстрый старт
 - Docker (рекомендуется): `make up` - соберёт образ, поднимет контейнер через docker-compose и откроет `http://localhost:8000/static/index.html`.
@@ -20,19 +22,6 @@
 Авторизуйтесь любой из них через форму логина на SPA или через стандартный /admin (суперпользователь нужен отдельно).
 Для живой работы фронта используйте путь `http://localhost:8000/static/index.html` (SPA с бандлом из `static/dist`).
 
-### По шагам
-1. Установите зависимости: `pip install -r requirements.txt` (или `make install`).
-2. Примените миграции: `python vacation_workflow/manage.py migrate` (или `make migrate`).
-3. Соберите фронт: `make fe-install && make fe-build`.
-4. Создайте суперпользователя: `python vacation_workflow/manage.py createsuperuser` (или `make superuser`).
-5. Запустите сервер: `python vacation_workflow/manage.py runserver localhost:8000` (или `make run`).
-6. Откройте `http://localhost:8000/static/index.html` для доступа к SPA (или `make open-url`).
-
-### Запуск в Docker
-1. Соберите образ: `make docker-build` (или `docker build -t d0mhate/vacation-workflow .`).
-2. Запустите контейнер: `make docker-run` (поднимется на `http://localhost:8000`, SPA на `/static/index.html`).
-3. Остановить/логи: `make docker-stop`, `make docker-logs`.
-4. Одной командой: `make up` - build+up+подсказки, откроет браузер.
 
 Готовый образ в Docker Hub: `d0mhate/vacation-workflow:latest`
 - `docker pull d0mhate/vacation-workflow:latest`
