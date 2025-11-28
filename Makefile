@@ -6,6 +6,8 @@ FRONTEND_DIR := frontend
 STATIC_DIST := vacation_workflow/static/dist
 IMAGE ?= d0mhate/vacation-workflow
 CONTAINER ?= vacation-workflow
+DATE_TAG := $(shell date +%Y-%m-%d)
+IMAGE_DATED := $(IMAGE):$(DATE_TAG)
 
 .PHONY: help install migrate superuser demo-users run setup start db stop logs notifications reset-db flush reset-demo 
 
@@ -25,8 +27,10 @@ help:
 	@echo "  fe-dev          - запустить Vite dev server"
 	@echo "  fe-clean        - удалить dist/node_modules фронта"
 	@echo "  docker-build    - собрать Docker-образ"
+	@echo "  docker-build-dated - собрать образ с датой (TAG=$(DATE_TAG))"
 	@echo "  docker-run      - запустить контейнер (порт 8000)"
 	@echo "  docker-push     - отправить образ ($(IMAGE)) в реестр"
+	@echo "  docker-push-dated - отправить образ с датой ($(IMAGE_DATED))"
 	@echo "  docker-stop     - остановить контейнер"
 	@echo "  docker-logs     - логи контейнера"
 	@echo "  compose-up      - docker-compose up (build + run)"
@@ -102,8 +106,15 @@ fe-clean:
 docker-build:
 	docker build -t $(IMAGE) .
 
+docker-build-dated:
+	docker build -t $(IMAGE_DATED) .
+	@echo "Built $(IMAGE_DATED). Если нужен latest: docker tag $(IMAGE_DATED) $(IMAGE)"
+
 docker-push:
 	docker push $(IMAGE)
+
+docker-push-dated:
+	docker push $(IMAGE_DATED)
 
 docker-run:
 	docker run --rm -d --name $(CONTAINER) -p 8000:8000 $(IMAGE)
