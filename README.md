@@ -1,4 +1,4 @@
-# vacation-workflow-demo
+# vacation-workflow-demo [![Build and Push Docker image](https://github.com/d0mhate/vacation-workflow-demo/actions/workflows/docker.yml/badge.svg?branch=master)](https://github.com/d0mhate/vacation-workflow-demo/actions/workflows/docker.yml)
 
 Прототип системы управления графиком отпусков на Django + Vue 3 (сборка через Vite).
 
