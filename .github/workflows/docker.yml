@@ -11,6 +11,8 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    environment:
+      name: DOCKERHUB
     permissions:
       contents: read
       packages: write
